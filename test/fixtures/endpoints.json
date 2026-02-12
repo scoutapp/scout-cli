@@ -1,0 +1,19 @@
+{
+  "header": {
+    "status": { "code": 200, "message": "OK" },
+    "apiVersion": "0.1"
+  },
+  "results": [
+    {
+      "name": "api/metrics/show",
+      "percentage_of_total": 48.03,
+      "response_time": 92.65,
+      "throughput": 403.26,
+      "max_allocations": 474271,
+      "error_rate": 0,
+      "formatted_method_name": "Api::MetricsController#show",
+      "link": "/apps/6/endpoints/YXBpL21ldHJpY3Mvc2hvdw==",
+      "95th_percentile": 396.10
+    }
+  ]
+}
