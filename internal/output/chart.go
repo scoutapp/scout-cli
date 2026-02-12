@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/guptarohit/asciigraph"
-	"github.com/scoutapm/scout-cli/internal/api"
+	"github.com/scoutapm/scout/internal/api"
 )
 
 func RenderChart(title string, points []api.MetricPoint, summary float64, unit string) string {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/scoutapm/scout-cli/internal/output"
+	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -65,9 +65,13 @@ func runErrorsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	total := len(groups)
+	limit, _ := applyLimit(total)
+
 	headers := []string{"ID", "Name", "Count", "Status", "Last Seen"}
-	rows := make([][]string, len(groups))
-	for i, g := range groups {
+	rows := make([][]string, limit)
+	for i := 0; i < limit; i++ {
+		g := groups[i]
 		status := output.StatusColor(g.Status).Render(g.Status)
 		rows[i] = []string{
 			strconv.Itoa(g.ID),
@@ -79,6 +83,7 @@ func runErrorsList(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
+	printTruncated(limit, total)
 }
 
 func runErrorsShow(cmd *cobra.Command, args []string) {
@@ -172,9 +177,13 @@ func runErrorsOccurrences(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	total := len(occurrences)
+	limit, _ := applyLimit(total)
+
 	headers := []string{"ID", "Time", "Location", "URI", "Message"}
-	rows := make([][]string, len(occurrences))
-	for i, o := range occurrences {
+	rows := make([][]string, limit)
+	for i := 0; i < limit; i++ {
+		o := occurrences[i]
 		msg := o.Message
 		if len(msg) > 80 {
 			msg = msg[:77] + "..."
@@ -189,4 +198,5 @@ func runErrorsOccurrences(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
+	printTruncated(limit, total)
 }

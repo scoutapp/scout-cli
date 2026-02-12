@@ -1,4 +1,4 @@
-module github.com/scoutapm/scout-cli
+module github.com/scoutapm/scout
 
 go 1.24.2
 

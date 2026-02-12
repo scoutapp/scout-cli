@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/scoutapm/scout-cli/internal/api"
+	"github.com/scoutapm/scout/internal/api"
 )
 
 func RenderSpanTree(trace api.TraceDetail) string {

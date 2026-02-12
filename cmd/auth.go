@@ -8,9 +8,9 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/scoutapm/scout-cli/internal/api"
-	"github.com/scoutapm/scout-cli/internal/config"
-	"github.com/scoutapm/scout-cli/internal/output"
+	"github.com/scoutapm/scout/internal/api"
+	"github.com/scoutapm/scout/internal/config"
+	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
 )
 

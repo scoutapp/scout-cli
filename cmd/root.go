@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/scoutapm/scout-cli/internal/api"
-	"github.com/scoutapm/scout-cli/internal/config"
-	"github.com/scoutapm/scout-cli/internal/timeutil"
+	"github.com/scoutapm/scout/internal/api"
+	"github.com/scoutapm/scout/internal/config"
+	"github.com/scoutapm/scout/internal/output"
+	"github.com/scoutapm/scout/internal/timeutil"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -18,6 +19,7 @@ var (
 	fromFlag   string
 	toFlag     string
 	noColor    bool
+	limitFlag  int
 )
 
 var rootCmd = &cobra.Command{
@@ -47,6 +49,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&fromFlag, "from", "", "Start time (relative: 1h, 7d, 30m or ISO 8601)")
 	rootCmd.PersistentFlags().StringVar(&toFlag, "to", "", "End time (relative or ISO 8601, default: now)")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colors")
+	rootCmd.PersistentFlags().IntVarP(&limitFlag, "limit", "n", 0, "Max number of results to show (0 = no limit)")
 }
 
 func getClient() (*api.Client, error) {
@@ -79,6 +82,20 @@ func outputJSON(data interface{}) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	enc.Encode(map[string]interface{}{"data": data})
+}
+
+func applyLimit(total int) (limit int, truncated bool) {
+	if limitFlag > 0 && limitFlag < total {
+		return limitFlag, true
+	}
+	return total, false
+}
+
+func printTruncated(shown, total int) {
+	if shown < total {
+		fmt.Printf("\n%s\n", output.DimStyle.Render(
+			fmt.Sprintf("Showing %d of %d results. Use -n to adjust.", shown, total)))
+	}
 }
 
 func exitError(msg string) {

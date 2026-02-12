@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/scoutapm/scout-cli/internal/output"
+	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -48,9 +48,13 @@ func runAppsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	total := len(apps)
+	limit, _ := applyLimit(total)
+
 	headers := []string{"ID", "Name", "Last Reported"}
-	rows := make([][]string, len(apps))
-	for i, app := range apps {
+	rows := make([][]string, limit)
+	for i := 0; i < limit; i++ {
+		app := apps[i]
 		lastReported := ""
 		if app.LastReportedAt != "" {
 			lastReported = output.FormatRelativeTime(app.LastReportedAt)
@@ -63,6 +67,7 @@ func runAppsList(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
+	printTruncated(limit, total)
 }
 
 func runAppsShow(cmd *cobra.Command, args []string) {

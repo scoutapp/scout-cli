@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/scoutapm/scout-cli/internal/output"
+	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
 )
 

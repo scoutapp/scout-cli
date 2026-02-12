@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/scoutapm/scout-cli/internal/output"
+	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -62,9 +62,13 @@ func runTracesList(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	total := len(traces)
+	limit, _ := applyLimit(total)
+
 	headers := []string{"ID", "Time", "Duration", "Memory", "Endpoint", "URI"}
-	rows := make([][]string, len(traces))
-	for i, t := range traces {
+	rows := make([][]string, limit)
+	for i := 0; i < limit; i++ {
+		t := traces[i]
 		rows[i] = []string{
 			strconv.Itoa(t.ID),
 			output.FormatRelativeTime(t.Time),
@@ -76,6 +80,7 @@ func runTracesList(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
+	printTruncated(limit, total)
 }
 
 func runTracesShow(cmd *cobra.Command, args []string) {

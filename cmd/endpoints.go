@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/scoutapm/scout-cli/internal/output"
+	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -63,9 +63,13 @@ func runEndpointsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	total := len(endpoints)
+	limit, _ := applyLimit(total)
+
 	headers := []string{"Name", "Resp Time", "Throughput", "Error %", "p95"}
-	rows := make([][]string, len(endpoints))
-	for i, ep := range endpoints {
+	rows := make([][]string, limit)
+	for i := 0; i < limit; i++ {
+		ep := endpoints[i]
 		errorPct := output.FormatPercent(ep.ErrorRate)
 		errorColored := output.ErrorRateColor(ep.ErrorRate).Render(errorPct)
 
@@ -79,6 +83,7 @@ func runEndpointsList(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
+	printTruncated(limit, total)
 }
 
 func runEndpointsMetrics(cmd *cobra.Command, args []string) {
