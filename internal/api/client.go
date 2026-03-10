@@ -46,7 +46,7 @@ func (c *Client) get(path string, params map[string]string) (json.RawMessage, er
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

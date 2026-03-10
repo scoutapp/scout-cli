@@ -15,7 +15,7 @@ func TestListApps(t *testing.T) {
 		assert.Equal(t, "/api/v0/apps", r.URL.Path)
 		assert.Equal(t, "test-key", r.Header.Get("X-SCOUT-API"))
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"header": map[string]interface{}{
 				"status":     map[string]interface{}{"code": 200, "message": "OK"},
 				"apiVersion": "0.1",
@@ -41,7 +41,7 @@ func TestListApps(t *testing.T) {
 func TestGetApp(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/v0/apps/6", r.URL.Path)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"header": map[string]interface{}{
 				"status":     map[string]interface{}{"code": 200, "message": "OK"},
 				"apiVersion": "0.1",
@@ -65,7 +65,7 @@ func TestGetMetrics(t *testing.T) {
 		assert.Equal(t, "/api/v0/apps/6/metrics/response_time", r.URL.Path)
 		assert.Equal(t, "2026-02-12T16:00:00Z", r.URL.Query().Get("from"))
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"header": map[string]interface{}{
 				"status":     map[string]interface{}{"code": 200, "message": "OK"},
 				"apiVersion": "0.1",

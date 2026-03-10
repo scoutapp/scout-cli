@@ -30,7 +30,7 @@ var tracesEndpointFlag string
 
 func init() {
 	tracesListCmd.Flags().StringVar(&tracesEndpointFlag, "endpoint", "", "URL-encoded endpoint ID")
-	tracesListCmd.MarkFlagRequired("endpoint")
+	_ = tracesListCmd.MarkFlagRequired("endpoint")
 	tracesCmd.AddCommand(tracesListCmd, tracesShowCmd)
 	rootCmd.AddCommand(tracesCmd)
 }
