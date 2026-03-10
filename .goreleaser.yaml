@@ -1,0 +1,46 @@
+version: 2
+
+builds:
+  - binary: scout
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/scoutapm/scout/cmd.Version={{.Version}}
+
+archives:
+  - format: tar.gz
+    name_template: "scout-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+brews:
+  - repository:
+      owner: scoutapp
+      name: homebrew-scout-cli
+    name: scout-cli
+    homepage: "https://github.com/scoutapp/scout-cli"
+    description: "Scout APM CLI — monitor application performance from the terminal"
+    license: "MIT"
+    install: |
+      bin.install "scout"
+    test: |
+      system "#{bin}/scout", "--version"
