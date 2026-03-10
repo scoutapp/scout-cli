@@ -95,7 +95,7 @@ func TestGetMetrics(t *testing.T) {
 func TestListEndpoints(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Endpoints return a bare array in results
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"header": map[string]interface{}{
 				"status":     map[string]interface{}{"code": 200, "message": "OK"},
 				"apiVersion": "0.1",
@@ -129,7 +129,7 @@ func TestListEndpoints(t *testing.T) {
 
 func TestAPIError403(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"header": map[string]interface{}{
 				"status":     map[string]interface{}{"code": 403, "message": "Forbidden"},
 				"apiVersion": "0.1",
