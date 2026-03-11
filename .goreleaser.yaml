@@ -15,11 +15,13 @@ builds:
       - -s -w -X github.com/scoutapm/scout/cmd.Version={{.Version}}
 
 archives:
-  - format: tar.gz
-    name_template: "scout-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
+    name_template: "scout-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: "checksums.txt"
@@ -32,15 +34,13 @@ changelog:
       - "^test:"
       - "^ci:"
 
-brews:
+homebrew_casks:
   - repository:
       owner: scoutapp
       name: homebrew-scout-cli
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     name: scout-cli
+    binaries:
+      - scout
     homepage: "https://github.com/scoutapp/scout-cli"
     description: "Scout APM CLI — monitor application performance from the terminal"
-    license: "MIT"
-    install: |
-      bin.install "scout"
-    test: |
-      system "#{bin}/scout", "--version"
