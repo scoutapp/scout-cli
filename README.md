@@ -1,4 +1,4 @@
-# scout-apm CLI
+# Scout APM CLI
 
 A command-line interface for [Scout APM](https://scoutapm.com). View apps, metrics, endpoints, traces, errors, and insights from the terminal.
 

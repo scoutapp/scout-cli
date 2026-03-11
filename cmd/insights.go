@@ -28,7 +28,7 @@ var insightTypeFlag string
 
 func init() {
 	insightsShowCmd.Flags().StringVar(&insightTypeFlag, "type", "", "Insight type (n_plus_one, memory_bloat, slow_query)")
-	insightsShowCmd.MarkFlagRequired("type")
+	_ = insightsShowCmd.MarkFlagRequired("type")
 	insightsCmd.AddCommand(insightsListCmd, insightsShowCmd)
 	rootCmd.AddCommand(insightsCmd)
 }

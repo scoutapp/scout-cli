@@ -30,8 +30,8 @@ var endpointMetricTypeFlag string
 func init() {
 	endpointsMetricsCmd.Flags().StringVar(&endpointFlag, "endpoint", "", "URL-encoded endpoint name")
 	endpointsMetricsCmd.Flags().StringVar(&endpointMetricTypeFlag, "type", "", "Metric type")
-	endpointsMetricsCmd.MarkFlagRequired("endpoint")
-	endpointsMetricsCmd.MarkFlagRequired("type")
+	_ = endpointsMetricsCmd.MarkFlagRequired("endpoint")
+	_ = endpointsMetricsCmd.MarkFlagRequired("type")
 	endpointsCmd.AddCommand(endpointsListCmd, endpointsMetricsCmd)
 	rootCmd.AddCommand(endpointsCmd)
 }

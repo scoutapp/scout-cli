@@ -61,7 +61,7 @@ func TestGetAPIKeyFromEnv(t *testing.T) {
 }
 
 func TestGetAPIURLDefault(t *testing.T) {
-	os.Unsetenv("SCOUT_API_URL")
+	_ = os.Unsetenv("SCOUT_API_URL")
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)

@@ -22,7 +22,7 @@ var metricTypeFlag string
 
 func init() {
 	metricsGetCmd.Flags().StringVar(&metricTypeFlag, "type", "", "Metric type (apdex, response_time, response_time_95th, errors, throughput, queue_time)")
-	metricsGetCmd.MarkFlagRequired("type")
+	_ = metricsGetCmd.MarkFlagRequired("type")
 	metricsCmd.AddCommand(metricsGetCmd)
 	rootCmd.AddCommand(metricsCmd)
 }

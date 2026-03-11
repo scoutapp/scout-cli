@@ -14,6 +14,9 @@ import (
 )
 
 var (
+	// Version is set at build time via ldflags.
+	Version = "dev"
+
 	jsonOutput bool
 	appID      int
 	fromFlag   string
@@ -23,16 +26,17 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "scout",
-	Short: "Scout APM CLI — monitor application performance from the terminal",
-	Long:  "A command-line interface for Scout APM. View apps, metrics, endpoints, traces, errors, and insights.",
+	Use:     "scout",
+	Short:   "Scout APM CLI — monitor application performance from the terminal",
+	Long:    "A command-line interface for Scout APM. View apps, metrics, endpoints, traces, errors, and insights.",
+	Version: Version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Auto-enable JSON when piped
 		if !jsonOutput && !term.IsTerminal(int(os.Stdout.Fd())) {
 			jsonOutput = true
 		}
 		if noColor {
-			os.Setenv("NO_COLOR", "1")
+			_ = os.Setenv("NO_COLOR", "1")
 		}
 	},
 }
@@ -81,7 +85,7 @@ func resolveTimeframe() (string, string, error) {
 func outputJSON(data interface{}) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	enc.Encode(map[string]interface{}{"data": data})
+	_ = enc.Encode(map[string]interface{}{"data": data})
 }
 
 func applyLimit(total int) (limit int, truncated bool) {
