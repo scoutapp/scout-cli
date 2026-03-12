@@ -1,19 +1,25 @@
 # Scout APM CLI
 
-A command-line interface for [Scout APM](https://scoutapm.com). View apps, metrics, endpoints, traces, errors, and insights from the terminal.
+A command-line interface for [Scout Monitoring](https://scoutapm.com). Explore metrics, endpoints, traces, errors, and insights from the terminal.
 
 Built in Go with [Cobra](https://github.com/spf13/cobra), [Lipgloss](https://github.com/charmbracelet/lipgloss), [BubbleTea](https://github.com/charmbracelet/bubbletea), and [asciigraph](https://github.com/guptarohit/asciigraph).
 
 ## Install
 
+### Homebrew
+
 ```bash
-go install github.com/scoutapm/scout-cli@latest
+brew install scoutapp/tap/scout-cli
 ```
 
-Or build from source:
+### Download binary
+
+Pre-built binaries for macOS, Linux, and Windows are available on the [GitHub Releases](https://github.com/scoutapp/scout-cli/releases) page.
+
+### Build from source
 
 ```bash
-git clone https://github.com/scoutapm/scout-cli.git
+git clone https://github.com/scoutapp/scout-cli.git
 cd scout-cli
 go build -o scout .
 ```
@@ -21,10 +27,7 @@ go build -o scout .
 ## Authentication
 
 ```bash
-# Interactive login (prompts for API key)
-scout auth login
-
-# Non-interactive
+# Login
 scout auth login --key YOUR_API_KEY
 
 # Check auth status
@@ -129,3 +132,9 @@ scout completion bash   # Bash
 scout completion zsh    # Zsh
 scout completion fish   # Fish
 ```
+
+## Links
+
+- [Scout Monitoring](https://scoutapm.com) — Application performance monitoring
+- [Documentation](https://scoutapm.com/docs)
+- [GitHub Releases](https://github.com/scoutapp/scout-cli/releases)

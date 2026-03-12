@@ -37,7 +37,7 @@ changelog:
 homebrew_casks:
   - repository:
       owner: scoutapp
-      name: homebrew-scout-cli
+      name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     name: scout-cli
     binaries:
