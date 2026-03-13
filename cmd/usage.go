@@ -51,9 +51,9 @@ type dailyAppUsage struct {
 }
 
 type dailyReport struct {
-	Date         string          `json:"date"`
-	Total        int64           `json:"total"`
-	Apps         []dailyAppUsage `json:"apps"`
+	Date  string          `json:"date"`
+	Total int64           `json:"total"`
+	Apps  []dailyAppUsage `json:"apps"`
 }
 
 func runUsage(cmd *cobra.Command, args []string) {
@@ -80,27 +80,13 @@ func runUsage(cmd *cobra.Command, args []string) {
 
 	chunks := splitTimeframe(from, to)
 
-	var (
-		mu      sync.Mutex
-		wg      sync.WaitGroup
-		results []appUsage
-	)
-
-	for _, app := range apps {
-		wg.Add(1)
-		go func(a api.App) {
-			defer wg.Done()
-			txns := fetchAppTransactions(client, a.ID, chunks)
-			mu.Lock()
-			results = append(results, appUsage{
-				ID:           a.ID,
-				Name:         a.Name,
-				Transactions: txns,
-			})
-			mu.Unlock()
-		}(app)
-	}
-	wg.Wait()
+	results := fetchAllApps(apps, func(a api.App) appUsage {
+		return appUsage{
+			ID:           a.ID,
+			Name:         a.Name,
+			Transactions: fetchAppTransactions(client, a.ID, chunks),
+		}
+	})
 
 	if !showAllApps {
 		filtered := results[:0]
@@ -148,10 +134,7 @@ func runUsage(cmd *cobra.Command, args []string) {
 
 	fmt.Println(output.RenderTable(headers, rows))
 	printTruncated(limit, total)
-
-	if grandTotal > 0 {
-		fmt.Printf("\nTotal: %s transactions\n", formatTransactions(grandTotal))
-	}
+	printTotalFooter(grandTotal)
 }
 
 func runUsageByDay(cmd *cobra.Command, args []string) {
@@ -182,29 +165,7 @@ func runUsageByDayAllApps(client *api.Client, from, to string) {
 	}
 
 	chunks := splitTimeframe(from, to)
-
-	// Fetch all points for all apps in parallel
-	type appPoints struct {
-		points []api.MetricPoint
-	}
-	var (
-		mu        sync.Mutex
-		wg        sync.WaitGroup
-		allPoints []api.MetricPoint
-	)
-
-	for _, app := range apps {
-		wg.Add(1)
-		go func(a api.App) {
-			defer wg.Done()
-			pts := fetchAppPoints(client, a.ID, chunks)
-			mu.Lock()
-			allPoints = append(allPoints, pts...)
-			mu.Unlock()
-		}(app)
-	}
-	wg.Wait()
-
+	allPoints := fetchAllAppPoints(client, apps, chunks)
 	days := bucketByDay(allPoints)
 
 	if jsonOutput {
@@ -231,10 +192,7 @@ func runUsageByDayAllApps(client *api.Client, from, to string) {
 
 	fmt.Println(output.RenderTable(headers, rows))
 	printTruncated(limit, total)
-
-	if grandTotal > 0 {
-		fmt.Printf("\nTotal: %s transactions\n", formatTransactions(float64(grandTotal)))
-	}
+	printTotalFooter(float64(grandTotal))
 }
 
 func runUsageByDayByApp(client *api.Client, from, to string) {
@@ -246,31 +204,16 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 
 	chunks := splitTimeframe(from, to)
 
-	// Fetch points per app in parallel
 	type appPointsResult struct {
 		app    api.App
 		points []api.MetricPoint
 	}
-	var (
-		mu      sync.Mutex
-		wg      sync.WaitGroup
-		appData []appPointsResult
-	)
 
-	for _, app := range apps {
-		wg.Add(1)
-		go func(a api.App) {
-			defer wg.Done()
-			pts := fetchAppPoints(client, a.ID, chunks)
-			mu.Lock()
-			appData = append(appData, appPointsResult{app: a, points: pts})
-			mu.Unlock()
-		}(app)
-	}
-	wg.Wait()
+	appData := fetchAllApps(apps, func(a api.App) appPointsResult {
+		return appPointsResult{app: a, points: fetchAppPoints(client, a.ID, chunks)}
+	})
 
-	// Bucket each app's points by day
-	// dayMap[date][appID] = transactions
+	// Bucket each app's points by day using the shared interval logic
 	type appDayInfo struct {
 		appID   int
 		appName string
@@ -279,22 +222,8 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 	dayMap := make(map[string][]appDayInfo)
 
 	for _, ad := range appData {
-		if len(ad.points) < 2 {
-			continue
-		}
-		for i := 1; i < len(ad.points); i++ {
-			t0, err0 := time.Parse(time.RFC3339, ad.points[i-1].Timestamp)
-			t1, err1 := time.Parse(time.RFC3339, ad.points[i].Timestamp)
-			if err0 != nil || err1 != nil {
-				continue
-			}
-			intervalMinutes := t1.Sub(t0).Minutes()
-			if intervalMinutes <= 0 {
-				continue
-			}
-			day := t0.Format("2006-01-02")
-			txns := ad.points[i-1].Value * intervalMinutes
-			// Find or append
+		dayTotals := sumIntervalsByDay(ad.points)
+		for day, txns := range dayTotals {
 			found := false
 			for j := range dayMap[day] {
 				if dayMap[day][j].appID == ad.app.ID {
@@ -313,12 +242,7 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 		}
 	}
 
-	// Build sorted day list
-	var dates []string
-	for d := range dayMap {
-		dates = append(dates, d)
-	}
-	sort.Strings(dates)
+	dates := sortedKeys(dayMap)
 
 	// Fetch top endpoints per app per day in parallel
 	type endpointKey struct {
@@ -351,7 +275,6 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 	}
 	epWg.Wait()
 
-	// Build reports
 	reports := make([]dailyReport, 0, len(dates))
 	for _, date := range dates {
 		appInfos := dayMap[date]
@@ -442,7 +365,6 @@ func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
 			if err != nil || len(endpoints) == 0 {
 				return
 			}
-			// Endpoints are returned sorted by throughput descending
 			days[idx].TopEndpoint = endpoints[0].Name
 		}(i)
 	}
@@ -473,10 +395,40 @@ func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
 
 	fmt.Println(output.RenderTable(headers, rows))
 	printTruncated(limit, total)
+	printTotalFooter(float64(grandTotal))
+}
 
-	if grandTotal > 0 {
-		fmt.Printf("\nTotal: %s transactions\n", formatTransactions(float64(grandTotal)))
+// fetchAllApps runs fn for each app in parallel and collects the results.
+func fetchAllApps[T any](apps []api.App, fn func(api.App) T) []T {
+	var (
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		results []T
+	)
+	for _, app := range apps {
+		wg.Add(1)
+		go func(a api.App) {
+			defer wg.Done()
+			result := fn(a)
+			mu.Lock()
+			results = append(results, result)
+			mu.Unlock()
+		}(app)
 	}
+	wg.Wait()
+	return results
+}
+
+// fetchAllAppPoints fetches and merges throughput points for all apps in parallel.
+func fetchAllAppPoints(client *api.Client, apps []api.App, chunks [][2]string) []api.MetricPoint {
+	perApp := fetchAllApps(apps, func(a api.App) []api.MetricPoint {
+		return fetchAppPoints(client, a.ID, chunks)
+	})
+	var allPoints []api.MetricPoint
+	for _, pts := range perApp {
+		allPoints = append(allPoints, pts...)
+	}
+	return allPoints
 }
 
 // fetchAppPoints fetches throughput time-series data across all time chunks.
@@ -487,10 +439,40 @@ func fetchAppPoints(client *api.Client, appID int, chunks [][2]string) []api.Met
 		if err != nil {
 			continue
 		}
-		series := metrics.Series["throughput"]
-		allPoints = append(allPoints, series...)
+		allPoints = append(allPoints, metrics.Series["throughput"]...)
 	}
 	return allPoints
+}
+
+// intervalTransactions computes the transaction count for a consecutive pair
+// of metric points (RPM * interval in minutes). Returns 0 if the timestamps
+// are invalid or the interval is non-positive.
+func intervalTransactions(prev, curr api.MetricPoint) float64 {
+	t0, err0 := time.Parse(time.RFC3339, prev.Timestamp)
+	t1, err1 := time.Parse(time.RFC3339, curr.Timestamp)
+	if err0 != nil || err1 != nil {
+		return 0
+	}
+	intervalMinutes := t1.Sub(t0).Minutes()
+	if intervalMinutes <= 0 {
+		return 0
+	}
+	return prev.Value * intervalMinutes
+}
+
+// sumIntervalsByDay computes per-day transaction totals from RPM time-series
+// data. Returns a map of date strings to transaction counts.
+func sumIntervalsByDay(points []api.MetricPoint) map[string]float64 {
+	dayTotals := make(map[string]float64)
+	for i := 1; i < len(points); i++ {
+		txns := intervalTransactions(points[i-1], points[i])
+		if txns <= 0 {
+			continue
+		}
+		t0, _ := time.Parse(time.RFC3339, points[i-1].Timestamp)
+		dayTotals[t0.Format("2006-01-02")] += txns
+	}
+	return dayTotals
 }
 
 // bucketByDay aggregates time-series RPM data into daily transaction counts.
@@ -499,21 +481,7 @@ func bucketByDay(points []api.MetricPoint) []dailyUsage {
 		return nil
 	}
 
-	dayTotals := make(map[string]float64)
-
-	for i := 1; i < len(points); i++ {
-		t0, err0 := time.Parse(time.RFC3339, points[i-1].Timestamp)
-		t1, err1 := time.Parse(time.RFC3339, points[i].Timestamp)
-		if err0 != nil || err1 != nil {
-			continue
-		}
-		intervalMinutes := t1.Sub(t0).Minutes()
-		if intervalMinutes <= 0 {
-			continue
-		}
-		day := t0.Format("2006-01-02")
-		dayTotals[day] += points[i-1].Value * intervalMinutes
-	}
+	dayTotals := sumIntervalsByDay(points)
 
 	days := make([]dailyUsage, 0, len(dayTotals))
 	for day, txns := range dayTotals {
@@ -569,18 +537,8 @@ func calculateTransactions(points []api.MetricPoint) float64 {
 
 	var total float64
 	for i := 1; i < len(points); i++ {
-		t0, err0 := time.Parse(time.RFC3339, points[i-1].Timestamp)
-		t1, err1 := time.Parse(time.RFC3339, points[i].Timestamp)
-		if err0 != nil || err1 != nil {
-			continue
-		}
-		intervalMinutes := t1.Sub(t0).Minutes()
-		if intervalMinutes <= 0 {
-			continue
-		}
-		total += points[i-1].Value * intervalMinutes
+		total += intervalTransactions(points[i-1], points[i])
 	}
-
 	return total
 }
 
@@ -591,6 +549,23 @@ func printTimeframe(from, to string) {
 	fromStr := fromTime.Format("Jan 02, 2006 15:04 UTC")
 	toStr := toTime.Format("Jan 02, 2006 15:04 UTC")
 	fmt.Printf("%s\n\n", output.DimStyle.Render(fmt.Sprintf("Timeframe: %s → %s", fromStr, toStr)))
+}
+
+// printTotalFooter prints the grand total line if non-zero.
+func printTotalFooter(grandTotal float64) {
+	if grandTotal > 0 {
+		fmt.Printf("\nTotal: %s transactions\n", formatTransactions(grandTotal))
+	}
+}
+
+// sortedKeys returns the keys of a map sorted in ascending order.
+func sortedKeys[V any](m map[string][]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // formatTransactions formats a number with comma separators.
