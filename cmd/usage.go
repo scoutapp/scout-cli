@@ -5,6 +5,7 @@ import (
 	"math"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/scoutapm/scout/internal/api"
@@ -56,6 +57,17 @@ type dailyReport struct {
 	Apps  []dailyAppUsage `json:"apps"`
 }
 
+type appDayInfo struct {
+	appID   int
+	appName string
+	txns    float64
+}
+
+type endpointKey struct {
+	date  string
+	appID int
+}
+
 func runUsage(cmd *cobra.Command, args []string) {
 	if byDay {
 		runUsageByDay(cmd, args)
@@ -80,12 +92,16 @@ func runUsage(cmd *cobra.Command, args []string) {
 
 	chunks := splitTimeframe(from, to)
 
-	results := fetchAllApps(apps, func(a api.App) appUsage {
-		return appUsage{
-			ID:           a.ID,
-			Name:         a.Name,
-			Transactions: fetchAppTransactions(client, a.ID, chunks),
-		}
+	results := output.RunWithProgress("Fetching usage data", !jsonOutput, func(update func(float64)) []appUsage {
+		return fetchAllApps(apps, func(a api.App) appUsage {
+			return appUsage{
+				ID:           a.ID,
+				Name:         a.Name,
+				Transactions: fetchAppTransactions(client, a.ID, chunks),
+			}
+		}, func(done, total int) {
+			update(float64(done) / float64(total))
+		})
 	})
 
 	if !showAllApps {
@@ -165,7 +181,12 @@ func runUsageByDayAllApps(client *api.Client, from, to string) {
 	}
 
 	chunks := splitTimeframe(from, to)
-	allPoints := fetchAllAppPoints(client, apps, chunks)
+
+	allPoints := output.RunWithProgress("Fetching daily usage data", !jsonOutput, func(update func(float64)) []api.MetricPoint {
+		return fetchAllAppPoints(client, apps, chunks, func(done, total int) {
+			update(float64(done) / float64(total))
+		})
+	})
 	days := bucketByDay(allPoints)
 
 	if jsonOutput {
@@ -203,77 +224,109 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 	}
 
 	chunks := splitTimeframe(from, to)
+	showProgress := !jsonOutput
 
 	type appPointsResult struct {
 		app    api.App
 		points []api.MetricPoint
 	}
 
-	appData := fetchAllApps(apps, func(a api.App) appPointsResult {
-		return appPointsResult{app: a, points: fetchAppPoints(client, a.ID, chunks)}
+	type byDayByAppResult struct {
+		appData      []appPointsResult
+		dayMap       map[string][]appDayInfo
+		dates        []string
+		topEndpoints map[endpointKey]string
+	}
+
+	result := output.RunWithProgress("Fetching usage data", showProgress, func(update func(float64)) byDayByAppResult {
+		// Phase 1: Fetch app data (0% - 50%)
+		appData := fetchAllApps(apps, func(a api.App) appPointsResult {
+			return appPointsResult{app: a, points: fetchAppPoints(client, a.ID, chunks)}
+		}, func(done, total int) {
+			update(float64(done) / float64(total) * 0.5)
+		})
+
+		// Bucket each app's points by day using the shared interval logic
+		dayMap := make(map[string][]appDayInfo)
+		for _, ad := range appData {
+			dayTotals := sumIntervalsByDay(ad.points)
+			for day, txns := range dayTotals {
+				found := false
+				for j := range dayMap[day] {
+					if dayMap[day][j].appID == ad.app.ID {
+						dayMap[day][j].txns += txns
+						found = true
+						break
+					}
+				}
+				if !found {
+					dayMap[day] = append(dayMap[day], appDayInfo{
+						appID:   ad.app.ID,
+						appName: ad.app.Name,
+						txns:    txns,
+					})
+				}
+			}
+		}
+
+		dates := sortedKeys(dayMap)
+
+		// Phase 2: Fetch top endpoints (50% - 100%)
+		topEndpoints := make(map[endpointKey]string)
+		var epMu sync.Mutex
+		var epWg sync.WaitGroup
+		var epTotal int64
+		var epDone int64
+
+		for _, date := range dates {
+			for _, info := range dayMap[date] {
+				if info.txns > 0 {
+					epTotal++
+				}
+			}
+		}
+
+		for _, date := range dates {
+			for _, info := range dayMap[date] {
+				if info.txns <= 0 {
+					continue
+				}
+				epWg.Add(1)
+				go func(d string, aID int) {
+					defer epWg.Done()
+					dayStart := d + "T00:00:00Z"
+					dayEnd := d + "T23:59:59Z"
+					endpoints, err := client.ListEndpoints(aID, dayStart, dayEnd)
+					if err != nil || len(endpoints) == 0 {
+						n := atomic.AddInt64(&epDone, 1)
+						if epTotal > 0 {
+							update(0.5 + float64(n)/float64(epTotal)*0.5)
+						}
+						return
+					}
+					epMu.Lock()
+					topEndpoints[endpointKey{date: d, appID: aID}] = endpoints[0].Name
+					epMu.Unlock()
+					n := atomic.AddInt64(&epDone, 1)
+					if epTotal > 0 {
+						update(0.5 + float64(n)/float64(epTotal)*0.5)
+					}
+				}(date, info.appID)
+			}
+		}
+		epWg.Wait()
+
+		return byDayByAppResult{
+			appData:      appData,
+			dayMap:       dayMap,
+			dates:        dates,
+			topEndpoints: topEndpoints,
+		}
 	})
 
-	// Bucket each app's points by day using the shared interval logic
-	type appDayInfo struct {
-		appID   int
-		appName string
-		txns    float64
-	}
-	dayMap := make(map[string][]appDayInfo)
-
-	for _, ad := range appData {
-		dayTotals := sumIntervalsByDay(ad.points)
-		for day, txns := range dayTotals {
-			found := false
-			for j := range dayMap[day] {
-				if dayMap[day][j].appID == ad.app.ID {
-					dayMap[day][j].txns += txns
-					found = true
-					break
-				}
-			}
-			if !found {
-				dayMap[day] = append(dayMap[day], appDayInfo{
-					appID:   ad.app.ID,
-					appName: ad.app.Name,
-					txns:    txns,
-				})
-			}
-		}
-	}
-
-	dates := sortedKeys(dayMap)
-
-	// Fetch top endpoints per app per day in parallel
-	type endpointKey struct {
-		date  string
-		appID int
-	}
-	topEndpoints := make(map[endpointKey]string)
-	var epMu sync.Mutex
-	var epWg sync.WaitGroup
-
-	for _, date := range dates {
-		for _, info := range dayMap[date] {
-			if info.txns <= 0 {
-				continue
-			}
-			epWg.Add(1)
-			go func(d string, aID int) {
-				defer epWg.Done()
-				dayStart := d + "T00:00:00Z"
-				dayEnd := d + "T23:59:59Z"
-				endpoints, err := client.ListEndpoints(aID, dayStart, dayEnd)
-				if err != nil || len(endpoints) == 0 {
-					return
-				}
-				epMu.Lock()
-				topEndpoints[endpointKey{date: d, appID: aID}] = endpoints[0].Name
-				epMu.Unlock()
-			}(date, info.appID)
-		}
-	}
-	epWg.Wait()
+	dayMap := result.dayMap
+	dates := result.dates
+	topEndpoints := result.topEndpoints
 
 	reports := make([]dailyReport, 0, len(dates))
 	for _, date := range dates {
@@ -349,26 +402,42 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 
 func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
 	chunks := splitTimeframe(from, to)
-	points := fetchAppPoints(client, id, chunks)
-	days := bucketByDay(points)
+	showProgress := !jsonOutput
 
-	// Fetch top endpoint for each day in parallel
-	var wg sync.WaitGroup
-	for i := range days {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			d := days[idx]
-			dayStart := d.Date + "T00:00:00Z"
-			dayEnd := d.Date + "T23:59:59Z"
-			endpoints, err := client.ListEndpoints(id, dayStart, dayEnd)
-			if err != nil || len(endpoints) == 0 {
-				return
-			}
-			days[idx].TopEndpoint = endpoints[0].Name
-		}(i)
-	}
-	wg.Wait()
+	days := output.RunWithProgress("Fetching usage data", showProgress, func(update func(float64)) []dailyUsage {
+		points := fetchAppPoints(client, id, chunks)
+		days := bucketByDay(points)
+
+		if len(days) == 0 {
+			return days
+		}
+
+		// Fetch top endpoint for each day in parallel
+		update(0.5)
+		var wg sync.WaitGroup
+		var done int64
+		total := int64(len(days))
+		for i := range days {
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
+				d := days[idx]
+				dayStart := d.Date + "T00:00:00Z"
+				dayEnd := d.Date + "T23:59:59Z"
+				endpoints, err := client.ListEndpoints(id, dayStart, dayEnd)
+				if err != nil || len(endpoints) == 0 {
+					n := atomic.AddInt64(&done, 1)
+					update(0.5 + float64(n)/float64(total)*0.5)
+					return
+				}
+				days[idx].TopEndpoint = endpoints[0].Name
+				n := atomic.AddInt64(&done, 1)
+				update(0.5 + float64(n)/float64(total)*0.5)
+			}(i)
+		}
+		wg.Wait()
+		return days
+	})
 
 	if jsonOutput {
 		outputJSON(days)
@@ -399,12 +468,16 @@ func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
 }
 
 // fetchAllApps runs fn for each app in parallel and collects the results.
-func fetchAllApps[T any](apps []api.App, fn func(api.App) T) []T {
+// An optional onProgress callback is called after each app completes with
+// (completed, total) counts.
+func fetchAllApps[T any](apps []api.App, fn func(api.App) T, onProgress ...func(done, total int)) []T {
 	var (
-		mu      sync.Mutex
-		wg      sync.WaitGroup
-		results []T
+		mu        sync.Mutex
+		wg        sync.WaitGroup
+		results   []T
+		completed int64
 	)
+	total := len(apps)
 	for _, app := range apps {
 		wg.Add(1)
 		go func(a api.App) {
@@ -413,6 +486,10 @@ func fetchAllApps[T any](apps []api.App, fn func(api.App) T) []T {
 			mu.Lock()
 			results = append(results, result)
 			mu.Unlock()
+			if len(onProgress) > 0 && onProgress[0] != nil {
+				n := int(atomic.AddInt64(&completed, 1))
+				onProgress[0](n, total)
+			}
 		}(app)
 	}
 	wg.Wait()
@@ -420,10 +497,10 @@ func fetchAllApps[T any](apps []api.App, fn func(api.App) T) []T {
 }
 
 // fetchAllAppPoints fetches and merges throughput points for all apps in parallel.
-func fetchAllAppPoints(client *api.Client, apps []api.App, chunks [][2]string) []api.MetricPoint {
+func fetchAllAppPoints(client *api.Client, apps []api.App, chunks [][2]string, onProgress ...func(done, total int)) []api.MetricPoint {
 	perApp := fetchAllApps(apps, func(a api.App) []api.MetricPoint {
 		return fetchAppPoints(client, a.ID, chunks)
-	})
+	}, onProgress...)
 	var allPoints []api.MetricPoint
 	for _, pts := range perApp {
 		allPoints = append(allPoints, pts...)
