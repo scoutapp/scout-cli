@@ -369,12 +369,12 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 		grandTotal += report.Total
 	}
 
-	for _, report := range reports {
-		fmt.Printf("%s %s\n", output.HeaderStyle.Render("── "+report.Date+" ──"),
-			output.DimStyle.Render(fmt.Sprintf("%s transactions", formatTransactions(float64(report.Total)))))
-
-		headers := []string{"App", "Transactions", "% of Day", "% of Total", "Top Endpoint"}
-		rows := make([][]string, 0, len(report.Apps))
+	headers := []string{"Day", "App", "Transactions", "% of Day", "% of Total", "Top Endpoint"}
+	var rows [][]string
+	for i, report := range reports {
+		if i > 0 {
+			rows = append(rows, []string{"", "", "", "", "", ""})
+		}
 		for _, a := range report.Apps {
 			pctDay := 0.0
 			if report.Total > 0 {
@@ -385,6 +385,7 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 				pctTotal = (float64(a.Transactions) / float64(grandTotal)) * 100
 			}
 			rows = append(rows, []string{
+				report.Date,
 				a.AppName,
 				formatTransactions(float64(a.Transactions)),
 				fmt.Sprintf("%.1f%%", pctDay),
@@ -392,8 +393,8 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 				a.TopEndpoint,
 			})
 		}
-		fmt.Println(output.RenderTable(headers, rows))
 	}
+	fmt.Println(output.RenderTable(headers, rows))
 
 	if grandTotal > 0 {
 		fmt.Printf("Total: %s transactions\n", formatTransactions(float64(grandTotal)))
