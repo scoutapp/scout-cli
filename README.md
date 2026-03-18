@@ -79,6 +79,18 @@ scout errors show 50560 --app 6
 scout errors occurrences 50560 --app 6
 ```
 
+### Usage
+
+```bash
+scout usage                                    # Transaction usage across all apps (last 3 hours)
+scout usage --from 30d                         # Last 30 days
+scout usage --from 7d --all                    # Include apps with zero usage
+scout usage --by-day --from 30d                # Daily totals
+scout usage --by-day --by-app --from 30d       # Daily breakdown per app with top endpoints
+scout usage --by-day --app 6 --from 30d        # Daily breakdown for one app with top endpoint
+scout usage --from 14d --json                  # JSON output
+```
+
 ### Insights
 
 ```bash
@@ -103,6 +115,7 @@ scout setup rails     # Show setup docs for a framework
 | `--app <id>` | Application ID (or set `default_app_id` in config) |
 | `--from <time>` | Start time — relative (`1h`, `7d`, `30m`, `2w`) or ISO 8601 |
 | `--to <time>` | End time (default: now) |
+| `-n, --limit <n>` | Max number of results to show |
 | `--no-color` | Disable colors (also respects `NO_COLOR` env) |
 
 ## Configuration
