@@ -197,6 +197,18 @@ func (c *Client) ListErrorOccurrences(appID, errorID int) ([]ErrorOccurrence, er
 	return r.Errors, nil
 }
 
+func (c *Client) GetOrgUsage() (*OrgUsage, error) {
+	results, err := c.get("/api/v0/usage", nil)
+	if err != nil {
+		return nil, err
+	}
+	var r OrgUsage
+	if err := json.Unmarshal(results, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
 func (c *Client) ListInsights(appID int, from, to string) (*InsightsListResult, error) {
 	path := fmt.Sprintf("/api/v0/apps/%d/insights", appID)
 	results, err := c.get(path, map[string]string{"from": from, "to": to})

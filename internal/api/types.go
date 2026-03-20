@@ -212,6 +212,45 @@ type InsightsShowResult struct {
 	Items       []InsightItem     `json:"items"`
 }
 
+// OrgUsage represents the response from the org usage endpoint.
+type OrgUsage struct {
+	BillingPeriod BillingPeriod `json:"billing_period"`
+	PricingStyle  string        `json:"pricing_style"`
+	APM           *APMUsage     `json:"apm,omitempty"`
+	Nodes         *NodesUsage   `json:"nodes,omitempty"`
+	Errors        *ErrorsUsage  `json:"errors,omitempty"`
+	Logs          *LogsUsage    `json:"logs,omitempty"`
+}
+
+// BillingPeriod contains the start and end dates of the current billing cycle.
+type BillingPeriod struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+
+// APMUsage contains APM transaction usage for the billing period.
+type APMUsage struct {
+	TotalTransactions int64  `json:"total_transactions"`
+	Limit             *int64 `json:"limit,omitempty"`
+}
+
+// NodesUsage contains billable node count (per-node pricing only).
+type NodesUsage struct {
+	ActiveCount int `json:"active_count"`
+}
+
+// ErrorsUsage contains error tracking usage for the billing period.
+type ErrorsUsage struct {
+	Count int64 `json:"count"`
+	Limit int64 `json:"limit"`
+}
+
+// LogsUsage contains log ingestion usage for the billing period.
+type LogsUsage struct {
+	BytesUsed  int64  `json:"bytes_used"`
+	LimitBytes *int64 `json:"limit_bytes,omitempty"`
+}
+
 // APIError represents an error from the Scout API.
 type APIError struct {
 	StatusCode int

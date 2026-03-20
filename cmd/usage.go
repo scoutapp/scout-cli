@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	showAllApps bool
-	byDay       bool
-	byApp       bool
+	showAllApps   bool
+	byDay         bool
+	byApp         bool
+	billingPeriod bool
 )
 
 var usageCmd = &cobra.Command{
@@ -29,6 +30,7 @@ func init() {
 	usageCmd.Flags().BoolVar(&showAllApps, "all", false, "Include apps with zero usage")
 	usageCmd.Flags().BoolVar(&byDay, "by-day", false, "Show daily transaction breakdown")
 	usageCmd.Flags().BoolVar(&byApp, "by-app", false, "Break down by app (use with --by-day)")
+	usageCmd.Flags().BoolVar(&billingPeriod, "billing-period", false, "Use current billing period as timeframe")
 	rootCmd.AddCommand(usageCmd)
 }
 
@@ -79,7 +81,7 @@ func runUsage(cmd *cobra.Command, args []string) {
 		exitError(err.Error())
 	}
 
-	from, to, err := resolveTimeframe()
+	from, to, err := resolveBillingOrTimeframe()
 	if err != nil {
 		exitError(err.Error())
 	}
@@ -159,7 +161,7 @@ func runUsageByDay(cmd *cobra.Command, args []string) {
 		exitError(err.Error())
 	}
 
-	from, to, err := resolveTimeframe()
+	from, to, err := resolveBillingOrTimeframe()
 	if err != nil {
 		exitError(err.Error())
 	}
@@ -466,6 +468,49 @@ func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
 	fmt.Println(output.RenderTable(headers, rows))
 	printTruncated(limit, total)
 	printTotalFooter(float64(grandTotal))
+}
+
+// resolveBillingOrTimeframe returns the timeframe to use for usage queries.
+// If --billing-period is set, it fetches the billing dates from the org usage endpoint.
+// Otherwise, it falls back to the standard --from/--to flag resolution.
+func resolveBillingOrTimeframe() (string, string, error) {
+	if billingPeriod {
+		if fromFlag != "" || toFlag != "" {
+			return "", "", fmt.Errorf("--billing-period cannot be used with --from or --to")
+		}
+		client, err := getClient()
+		if err != nil {
+			return "", "", err
+		}
+		usage, err := client.GetOrgUsage()
+		if err != nil {
+			return "", "", fmt.Errorf("failed to fetch billing period: %w", err)
+		}
+		if usage.BillingPeriod.Start == "" || usage.BillingPeriod.End == "" {
+			return "", "", fmt.Errorf("billing period not available for this organization")
+		}
+		// Ensure RFC3339 format — handle date-only values from the API
+		start, err := parseBillingDate(usage.BillingPeriod.Start)
+		if err != nil {
+			return "", "", fmt.Errorf("invalid billing period start: %w", err)
+		}
+		end, err := parseBillingDate(usage.BillingPeriod.End)
+		if err != nil {
+			return "", "", fmt.Errorf("invalid billing period end: %w", err)
+		}
+		return start, end, nil
+	}
+	return resolveTimeframe()
+}
+
+// parseBillingDate parses an ISO 8601 date or datetime and returns RFC3339.
+func parseBillingDate(s string) (string, error) {
+	for _, layout := range []string{time.RFC3339, "2006-01-02"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.Format(time.RFC3339), nil
+		}
+	}
+	return "", fmt.Errorf("cannot parse %q as date", s)
 }
 
 // fetchAllApps runs fn for each app in parallel and collects the results.
