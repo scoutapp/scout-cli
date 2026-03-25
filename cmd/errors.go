@@ -60,8 +60,7 @@ func runErrorsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(groups)
+	if structuredOutput(groups) {
 		return
 	}
 
@@ -108,8 +107,7 @@ func runErrorsShow(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(group)
+	if structuredOutput(group) {
 		return
 	}
 
@@ -172,8 +170,7 @@ func runErrorsOccurrences(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(occurrences)
+	if structuredOutput(occurrences) {
 		return
 	}
 

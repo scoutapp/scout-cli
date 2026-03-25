@@ -55,8 +55,7 @@ func runInsightsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(result)
+	if structuredOutput(result) {
 		return
 	}
 
@@ -110,8 +109,7 @@ func runInsightsShow(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(result)
+	if structuredOutput(result) {
 		return
 	}
 

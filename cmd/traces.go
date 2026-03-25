@@ -57,8 +57,7 @@ func runTracesList(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(traces)
+	if structuredOutput(traces) {
 		return
 	}
 
@@ -105,8 +104,7 @@ func runTracesShow(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(trace)
+	if structuredOutput(trace) {
 		return
 	}
 

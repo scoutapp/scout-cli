@@ -43,8 +43,7 @@ func runAppsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(apps)
+	if structuredOutput(apps) {
 		return
 	}
 
@@ -87,8 +86,7 @@ func runAppsShow(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(app)
+	if structuredOutput(app) {
 		return
 	}
 

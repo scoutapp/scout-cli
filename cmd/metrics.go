@@ -49,8 +49,7 @@ func runMetricsGet(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(metrics)
+	if structuredOutput(metrics) {
 		return
 	}
 

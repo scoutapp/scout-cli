@@ -92,7 +92,7 @@ func runUsage(cmd *cobra.Command, args []string) {
 
 	chunks := splitTimeframe(from, to)
 
-	results := output.RunWithProgress("Fetching usage data", !jsonOutput, func(update func(float64)) []appUsage {
+	results := output.RunWithProgress("Fetching usage data", !jsonOutput && !toonOutput, func(update func(float64)) []appUsage {
 		return fetchAllApps(apps, func(a api.App) appUsage {
 			return appUsage{
 				ID:           a.ID,
@@ -118,8 +118,7 @@ func runUsage(cmd *cobra.Command, args []string) {
 		return results[i].Transactions > results[j].Transactions
 	})
 
-	if jsonOutput {
-		outputJSON(results)
+	if structuredOutput(results) {
 		return
 	}
 
@@ -182,15 +181,14 @@ func runUsageByDayAllApps(client *api.Client, from, to string) {
 
 	chunks := splitTimeframe(from, to)
 
-	allPoints := output.RunWithProgress("Fetching daily usage data", !jsonOutput, func(update func(float64)) []api.MetricPoint {
+	allPoints := output.RunWithProgress("Fetching daily usage data", !jsonOutput && !toonOutput, func(update func(float64)) []api.MetricPoint {
 		return fetchAllAppPoints(client, apps, chunks, func(done, total int) {
 			update(float64(done) / float64(total))
 		})
 	})
 	days := bucketByDay(allPoints)
 
-	if jsonOutput {
-		outputJSON(days)
+	if structuredOutput(days) {
 		return
 	}
 
@@ -224,7 +222,7 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 	}
 
 	chunks := splitTimeframe(from, to)
-	showProgress := !jsonOutput
+	showProgress := !jsonOutput && !toonOutput
 
 	type appPointsResult struct {
 		app    api.App
@@ -357,8 +355,7 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 		})
 	}
 
-	if jsonOutput {
-		outputJSON(reports)
+	if structuredOutput(reports) {
 		return
 	}
 
@@ -403,7 +400,7 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 
 func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
 	chunks := splitTimeframe(from, to)
-	showProgress := !jsonOutput
+	showProgress := !jsonOutput && !toonOutput
 
 	days := output.RunWithProgress("Fetching usage data", showProgress, func(update func(float64)) []dailyUsage {
 		points := fetchAppPoints(client, id, chunks)
@@ -440,8 +437,7 @@ func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
 		return days
 	})
 
-	if jsonOutput {
-		outputJSON(days)
+	if structuredOutput(days) {
 		return
 	}
 
