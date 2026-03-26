@@ -7,7 +7,6 @@
 - `--toon` flag for TOON output format ([spec](https://github.com/toon-format/spec)) — a token-efficient, LLM-friendly alternative to JSON
 - Auto-enable TOON (instead of JSON) when stdout is piped, for zero-config agent consumption
 - `structuredOutput()` helper unifying `--json` and `--toon` output paths across all commands
-- README documentation for TOON format and LLM/agent usage
 
 ## [0.2.0] - 2026-03-18
 
