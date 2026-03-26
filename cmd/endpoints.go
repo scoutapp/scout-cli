@@ -58,8 +58,7 @@ func runEndpointsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(endpoints)
+	if structuredOutput(endpoints) {
 		return
 	}
 
@@ -108,8 +107,7 @@ func runEndpointsMetrics(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(metrics)
+	if structuredOutput(metrics) {
 		return
 	}
 

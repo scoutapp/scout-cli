@@ -9,6 +9,7 @@ require (
 	github.com/guptarohit/asciigraph v0.7.3
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
+	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c
 	golang.org/x/term v0.40.0
 )
 

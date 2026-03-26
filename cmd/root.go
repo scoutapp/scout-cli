@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	toon "github.com/toon-format/toon-go"
+
 	"github.com/scoutapm/scout/internal/api"
 	"github.com/scoutapm/scout/internal/config"
 	"github.com/scoutapm/scout/internal/output"
@@ -18,6 +20,7 @@ var (
 	Version = "dev"
 
 	jsonOutput bool
+	toonOutput bool
 	appID      int
 	fromFlag   string
 	toFlag     string
@@ -28,12 +31,12 @@ var (
 var rootCmd = &cobra.Command{
 	Use:     "scout",
 	Short:   "Scout APM CLI — monitor application performance from the terminal",
-	Long:    "A command-line interface for Scout APM. View apps, metrics, endpoints, traces, errors, and insights.",
+	Long:    "A command-line interface for Scout APM. View apps, metrics, endpoints, traces, errors, and insights.\n\nWhen piped, output defaults to TOON format (token-efficient for LLMs). Use --json for raw JSON or --toon to force TOON in a terminal.",
 	Version: Version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Auto-enable JSON when piped
-		if !jsonOutput && !term.IsTerminal(int(os.Stdout.Fd())) {
-			jsonOutput = true
+		// Auto-enable TOON when piped (unless --json was explicitly set)
+		if !jsonOutput && !toonOutput && !term.IsTerminal(int(os.Stdout.Fd())) {
+			toonOutput = true
 		}
 		if noColor {
 			_ = os.Setenv("NO_COLOR", "1")
@@ -49,6 +52,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	rootCmd.PersistentFlags().BoolVar(&toonOutput, "toon", false, "Output in TOON format (token-efficient, auto-enabled when piped)")
 	rootCmd.PersistentFlags().IntVar(&appID, "app", 0, "Application ID")
 	rootCmd.PersistentFlags().StringVar(&fromFlag, "from", "", "Start time (relative: 1h, 7d, 30m or ISO 8601)")
 	rootCmd.PersistentFlags().StringVar(&toFlag, "to", "", "End time (relative or ISO 8601, default: now)")
@@ -86,6 +90,30 @@ func outputJSON(data interface{}) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(map[string]interface{}{"data": data})
+}
+
+func outputTOON(data interface{}) {
+	out, err := toon.MarshalString(data)
+	if err != nil {
+		// Fall back to JSON if TOON encoding fails
+		outputJSON(data)
+		return
+	}
+	fmt.Print(out)
+}
+
+// structuredOutput returns true and outputs the data if --json or --toon
+// (or piped) is active. Returns false if human-readable output should be used.
+func structuredOutput(data interface{}) bool {
+	if jsonOutput {
+		outputJSON(data)
+		return true
+	}
+	if toonOutput {
+		outputTOON(data)
+		return true
+	}
+	return false
 }
 
 func applyLimit(total int) (limit int, truncated bool) {

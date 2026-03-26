@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `--toon` flag for TOON output format ([spec](https://github.com/toon-format/spec)) — a token-efficient, LLM-friendly alternative to JSON
+- Auto-enable TOON (instead of JSON) when stdout is piped, for zero-config agent consumption
+- `structuredOutput()` helper unifying `--json` and `--toon` output paths across all commands
+
 ## [0.2.0] - 2026-03-18
 
 ### Added
@@ -29,6 +37,6 @@
 - `scout insights list/show` — view performance insights (n_plus_one, memory_bloat, slow_query)
 - `scout setup` — show setup instructions for supported frameworks
 - Global flags: `--json`, `--app`, `--from`, `--to`, `--no-color`, `--limit`
-- Auto-detect piped output and switch to JSON
+- Auto-detect piped output and switch to structured format
 - Homebrew installation via `scoutapp/tap`
 - CI/CD with GitHub Actions and GoReleaser

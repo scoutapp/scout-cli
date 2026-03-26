@@ -37,12 +37,11 @@ func init() {
 
 func runSetup(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
-		if jsonOutput {
-			names := make([]string, len(frameworks))
-			for i, f := range frameworks {
-				names[i] = f.name
-			}
-			outputJSON(map[string]interface{}{"frameworks": names})
+		names := make([]string, len(frameworks))
+		for i, f := range frameworks {
+			names[i] = f.name
+		}
+		if structuredOutput(map[string]interface{}{"frameworks": names}) {
 			return
 		}
 
@@ -74,11 +73,10 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 	docsURL := fmt.Sprintf("https://scoutapm.com/docs/%s", framework)
 
-	if jsonOutput {
-		outputJSON(map[string]interface{}{
-			"framework": framework,
-			"docs_url":  docsURL,
-		})
+	if structuredOutput(map[string]interface{}{
+		"framework": framework,
+		"docs_url":  docsURL,
+	}) {
 		return
 	}
 

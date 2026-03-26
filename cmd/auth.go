@@ -195,16 +195,15 @@ func runAuthStatus(cmd *cobra.Command, args []string) {
 	url := config.GetAPIURL()
 	cfg, _ := config.Read()
 
-	if jsonOutput {
-		data := map[string]interface{}{
-			"authenticated":  key != "",
-			"api_key_prefix": maskKey(key),
-			"api_url":        url,
-		}
-		if cfg.DefaultAppID > 0 {
-			data["default_app_id"] = cfg.DefaultAppID
-		}
-		outputJSON(data)
+	data := map[string]interface{}{
+		"authenticated":  key != "",
+		"api_key_prefix": maskKey(key),
+		"api_url":        url,
+	}
+	if cfg.DefaultAppID > 0 {
+		data["default_app_id"] = cfg.DefaultAppID
+	}
+	if structuredOutput(data) {
 		return
 	}
 
