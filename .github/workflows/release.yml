@@ -27,4 +27,26 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew tap
+        env:
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          REVISION="${GITHUB_SHA}"
+
+          git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/scoutapp/homebrew-tap.git" homebrew-tap
+          cd homebrew-tap
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Remove old cask if it exists (migrating to source-based formula)
+          rm -f Casks/scout-cli.rb
+
+          mkdir -p Formula
+          envsubst < "$GITHUB_WORKSPACE/homebrew/scout-cli.rb.template" > Formula/scout-cli.rb
+
+          git add -A
+          git commit -m "Update scout-cli formula to v${VERSION}" || echo "No changes to commit"
+          git push

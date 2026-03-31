@@ -1,5 +1,11 @@
 # Changelog
 
+## Pending
+
+### Changed
+
+- Switch Homebrew distribution from pre-built cask to source-based formula to avoid macOS Gatekeeper errors (#12)
+
 ## [0.3.0] - 2026-03-26
 
 ### Added
