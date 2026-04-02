@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.2] - 2026-04-02
+
+### Fixed
+
+- Fix Homebrew formula generation — export `VERSION` and `REVISION` env vars for `envsubst`
+
 ## [0.3.1] - 2026-04-02
 
 ### Changed

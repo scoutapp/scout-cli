@@ -32,8 +32,8 @@ jobs:
         env:
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          REVISION="${GITHUB_SHA}"
+          export VERSION="${GITHUB_REF_NAME#v}"
+          export REVISION="${GITHUB_SHA}"
 
           git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/scoutapp/homebrew-tap.git" homebrew-tap
           cd homebrew-tap
