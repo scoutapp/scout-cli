@@ -1,6 +1,6 @@
 # Changelog
 
-## Pending
+## [0.3.1] - 2026-04-02
 
 ### Changed
 
