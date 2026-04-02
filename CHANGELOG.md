@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.3] - 2026-04-02
+
+### Changed
+
+- Install Homebrew binary as `scout` instead of `scout-cli`
+
 ## [0.3.2] - 2026-04-02
 
 ### Fixed

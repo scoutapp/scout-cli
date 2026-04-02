@@ -11,6 +11,6 @@ class ScoutCli < Formula
 
   def install
     ldflags = "-s -w -X github.com/scoutapm/scout/cmd.Version=#{version}"
-    system "go", "build", *std_go_args(ldflags: ldflags), "."
+    system "go", "build", *std_go_args(ldflags: ldflags, output: bin/"scout"), "."
   end
 end
