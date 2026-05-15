@@ -112,7 +112,7 @@ scout setup rails     # Show setup docs for a framework
 | Flag | Description |
 |------|-------------|
 | `--json` | Output raw JSON |
-| `--toon` | Output in [TOON](https://toon-format.org) format (auto-enabled when piped) |
+| `--toon` | Output in [TOON](https://toonformat.dev/) format (auto-enabled when piped) |
 | `--app <id>` | Application ID (or set `default_app_id` in config) |
 | `--from <time>` | Start time — relative (`1h`, `7d`, `30m`, `2w`) or ISO 8601 |
 | `--to <time>` | End time (default: now) |
@@ -121,7 +121,7 @@ scout setup rails     # Show setup docs for a framework
 
 ## LLM / Agent Usage
 
-When output is piped, Scout CLI automatically switches to [TOON](https://toon-format.org) format — a token-efficient structured format designed for LLM consumption. This means tools like Claude Code, scripts, and other agents get compact, parseable output by default.
+When output is piped, Scout CLI automatically switches to [TOON](https://toonformat.dev/) format — a token-efficient structured format designed for LLM consumption. This means tools like Claude Code, scripts, and other agents get compact, parseable output by default.
 
 ```bash
 # TOON output is automatic when piped
