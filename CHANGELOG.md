@@ -5,6 +5,7 @@
 ### Added
 
 - `scout anomalies` and `scout anomalies show <id>` — list and inspect anomaly events (#15)
+- `scout anomalies show` — include `severity_threshold` and `duration_minutes` in the smart monitor detail block (#16)
 
 ## [0.3.3] - 2026-04-02
 

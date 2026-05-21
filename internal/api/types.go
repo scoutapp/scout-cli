@@ -64,8 +64,8 @@ func (mp MetricPoint) MarshalJSON() ([]byte, error) {
 
 // MetricsResult contains summaries and time series data.
 type MetricsResult struct {
-	Summaries map[string]float64        `json:"summaries"`
-	Series    map[string][]MetricPoint  `json:"series"`
+	Summaries map[string]float64       `json:"summaries"`
+	Series    map[string][]MetricPoint `json:"series"`
 }
 
 // EndpointEntry represents a single endpoint's performance data.
@@ -135,16 +135,16 @@ type TraceDetailResult struct {
 
 // ErrorGroup represents an error group.
 type ErrorGroup struct {
-	ID                int                    `json:"id"`
-	Name              string                 `json:"name"`
-	Message           string                 `json:"message"`
-	Status            string                 `json:"status"`
-	ErrorsCount       int                    `json:"errors_count"`
-	LastErrorAt       string                 `json:"last_error_at"`
-	RequestComponents json.RawMessage         `json:"request_components"`
-	RequestURI        string                 `json:"request_uri"`
-	AppEnvironment    string                 `json:"app_environment"`
-	LatestError       *ErrorOccurrence       `json:"latest_error,omitempty"`
+	ID                int              `json:"id"`
+	Name              string           `json:"name"`
+	Message           string           `json:"message"`
+	Status            string           `json:"status"`
+	ErrorsCount       int              `json:"errors_count"`
+	LastErrorAt       string           `json:"last_error_at"`
+	RequestComponents json.RawMessage  `json:"request_components"`
+	RequestURI        string           `json:"request_uri"`
+	AppEnvironment    string           `json:"app_environment"`
+	LatestError       *ErrorOccurrence `json:"latest_error,omitempty"`
 }
 
 // ErrorGroupsResult wraps the error groups list response.
@@ -205,9 +205,11 @@ type AnomalyEvent struct {
 
 // AnomalySmartMonitor is the joined smart monitor on an anomaly event detail.
 type AnomalySmartMonitor struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	Kind string `json:"kind"`
+	ID                int     `json:"id"`
+	Name              string  `json:"name"`
+	Kind              string  `json:"kind"`
+	SeverityThreshold float64 `json:"severity_threshold"`
+	DurationMinutes   int     `json:"duration_minutes"`
 }
 
 // AnomalyDeploy is the joined deploy on an anomaly event detail.
@@ -243,8 +245,8 @@ type InsightCategory struct {
 
 // InsightsTimeframe describes the time window for insights.
 type InsightsTimeframe struct {
-	StartTime       string `json:"start_time"`
-	EndTime         string `json:"end_time"`
+	StartTime       string  `json:"start_time"`
+	EndTime         string  `json:"end_time"`
 	DurationMinutes float64 `json:"duration_minutes"`
 }
 

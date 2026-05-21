@@ -150,9 +150,11 @@ func runAnomaliesShow(cmd *cobra.Command, args []string) {
 	if event.SmartMonitor != nil {
 		fmt.Println()
 		fmt.Println(output.BoldStyle.Render("Smart Monitor"))
-		fmt.Printf("  ID:   %d\n", event.SmartMonitor.ID)
-		fmt.Printf("  Name: %s\n", event.SmartMonitor.Name)
-		fmt.Printf("  Kind: %s\n", event.SmartMonitor.Kind)
+		fmt.Printf("  ID:                 %d\n", event.SmartMonitor.ID)
+		fmt.Printf("  Name:               %s\n", event.SmartMonitor.Name)
+		fmt.Printf("  Kind:               %s\n", event.SmartMonitor.Kind)
+		fmt.Printf("  Severity threshold: %.1f\n", event.SmartMonitor.SeverityThreshold)
+		fmt.Printf("  Duration:           %d min\n", event.SmartMonitor.DurationMinutes)
 	}
 
 	if event.Deploy != nil {
