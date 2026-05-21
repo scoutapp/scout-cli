@@ -197,6 +197,42 @@ func (c *Client) ListErrorOccurrences(appID, errorID int) ([]ErrorOccurrence, er
 	return r.Errors, nil
 }
 
+func (c *Client) ListAnomalyEvents(appID int, state, metric, endpoint, from, to string) ([]AnomalyEvent, error) {
+	path := fmt.Sprintf("/api/v0/apps/%d/anomaly_events", appID)
+	params := map[string]string{"from": from, "to": to}
+	if state != "" {
+		params["state"] = state
+	}
+	if metric != "" {
+		params["metric"] = metric
+	}
+	if endpoint != "" {
+		params["endpoint"] = endpoint
+	}
+	results, err := c.get(path, params)
+	if err != nil {
+		return nil, err
+	}
+	var r AnomalyEventsResult
+	if err := json.Unmarshal(results, &r); err != nil {
+		return nil, err
+	}
+	return r.Events, nil
+}
+
+func (c *Client) GetAnomalyEvent(appID, eventID int) (AnomalyEvent, error) {
+	path := fmt.Sprintf("/api/v0/apps/%d/anomaly_events/%d", appID, eventID)
+	results, err := c.get(path, nil)
+	if err != nil {
+		return AnomalyEvent{}, err
+	}
+	var r AnomalyEventResult
+	if err := json.Unmarshal(results, &r); err != nil {
+		return AnomalyEvent{}, err
+	}
+	return r.Event, nil
+}
+
 func (c *Client) ListInsights(appID int, from, to string) (*InsightsListResult, error) {
 	path := fmt.Sprintf("/api/v0/apps/%d/insights", appID)
 	results, err := c.get(path, map[string]string{"from": from, "to": to})

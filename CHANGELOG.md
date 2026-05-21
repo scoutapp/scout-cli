@@ -1,5 +1,11 @@
 # Changelog
 
+## Pending
+
+### Added
+
+- `scout anomalies` and `scout anomalies show <id>` — list and inspect anomaly events (#15)
+
 ## [0.3.3] - 2026-04-02
 
 ### Changed
