@@ -77,10 +77,7 @@ func runAnomaliesList(cmd *cobra.Command, args []string) {
 	rows := make([][]string, limit)
 	for i := 0; i < limit; i++ {
 		e := events[i]
-		state := "closed"
-		if e.Open {
-			state = "open"
-		}
+		state := anomalyState(e.Open)
 		rows[i] = []string{
 			strconv.Itoa(e.ID),
 			output.StatusColor(state).Render(state),
@@ -122,11 +119,7 @@ func runAnomaliesShow(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	state := "closed"
-	if event.Open {
-		state = "open"
-	}
-
+	state := anomalyState(event.Open)
 	fmt.Println(output.HeaderStyle.Render(fmt.Sprintf("Anomaly #%d", event.ID)))
 	fmt.Printf("  State:       %s\n", output.StatusColor(state).Render(state))
 	fmt.Printf("  Metric:      %s\n", event.Metric)
@@ -176,4 +169,11 @@ func formatMultiplier(m *float64) string {
 		return "—"
 	}
 	return fmt.Sprintf("%.1fx", *m)
+}
+
+func anomalyState(open bool) string {
+	if open {
+		return "open"
+	}
+	return "closed"
 }
