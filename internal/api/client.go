@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type Client struct {
@@ -20,6 +21,21 @@ func NewClient(baseURL, apiKey string) *Client {
 		apiKey:     apiKey,
 		httpClient: &http.Client{},
 	}
+}
+
+// bodySnippet returns a single-line, length-limited view of a response body
+// suitable for embedding in an error message.
+func bodySnippet(body []byte) string {
+	s := strings.TrimSpace(string(body))
+	s = strings.Join(strings.Fields(s), " ")
+	if s == "" {
+		return "(empty response body)"
+	}
+	const max = 200
+	if len(s) > max {
+		return s[:max] + "…"
+	}
+	return s
 }
 
 func (c *Client) get(path string, params map[string]string) (json.RawMessage, error) {
@@ -55,7 +71,17 @@ func (c *Client) get(path string, params map[string]string) (json.RawMessage, er
 
 	var apiResp APIResponse
 	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+		// The body wasn't the expected JSON envelope. This commonly happens
+		// when an endpoint isn't deployed and the server returns a plain-text
+		// or HTML error (e.g. "Not Found"). Surface the HTTP status and a
+		// snippet of the body instead of a cryptic JSON parse error.
+		if resp.StatusCode >= 400 {
+			return nil, &APIError{
+				StatusCode: resp.StatusCode,
+				Message:    fmt.Sprintf("%s: %s", http.StatusText(resp.StatusCode), bodySnippet(body)),
+			}
+		}
+		return nil, fmt.Errorf("failed to parse response (HTTP %d): %s", resp.StatusCode, bodySnippet(body))
 	}
 
 	if apiResp.Header.Status.Code >= 400 {
