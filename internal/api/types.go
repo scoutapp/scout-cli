@@ -64,8 +64,8 @@ func (mp MetricPoint) MarshalJSON() ([]byte, error) {
 
 // MetricsResult contains summaries and time series data.
 type MetricsResult struct {
-	Summaries map[string]float64        `json:"summaries"`
-	Series    map[string][]MetricPoint  `json:"series"`
+	Summaries map[string]float64       `json:"summaries"`
+	Series    map[string][]MetricPoint `json:"series"`
 }
 
 // EndpointEntry represents a single endpoint's performance data.
@@ -135,16 +135,16 @@ type TraceDetailResult struct {
 
 // ErrorGroup represents an error group.
 type ErrorGroup struct {
-	ID                int                    `json:"id"`
-	Name              string                 `json:"name"`
-	Message           string                 `json:"message"`
-	Status            string                 `json:"status"`
-	ErrorsCount       int                    `json:"errors_count"`
-	LastErrorAt       string                 `json:"last_error_at"`
-	RequestComponents json.RawMessage         `json:"request_components"`
-	RequestURI        string                 `json:"request_uri"`
-	AppEnvironment    string                 `json:"app_environment"`
-	LatestError       *ErrorOccurrence       `json:"latest_error,omitempty"`
+	ID                int              `json:"id"`
+	Name              string           `json:"name"`
+	Message           string           `json:"message"`
+	Status            string           `json:"status"`
+	ErrorsCount       int              `json:"errors_count"`
+	LastErrorAt       string           `json:"last_error_at"`
+	RequestComponents json.RawMessage  `json:"request_components"`
+	RequestURI        string           `json:"request_uri"`
+	AppEnvironment    string           `json:"app_environment"`
+	LatestError       *ErrorOccurrence `json:"latest_error,omitempty"`
 }
 
 // ErrorGroupsResult wraps the error groups list response.
@@ -176,6 +176,59 @@ type ErrorOccurrencesResult struct {
 	Errors []ErrorOccurrence `json:"errors"`
 }
 
+// AnomalyEvent represents an anomaly event detected by Scout.
+// Detail-only fields are populated by GetAnomalyEvent.
+type AnomalyEvent struct {
+	ID             int      `json:"id"`
+	Metric         string   `json:"metric"`
+	Endpoint       string   `json:"endpoint,omitempty"`
+	Direction      string   `json:"direction"`
+	Severity       string   `json:"severity"`
+	StartedAt      string   `json:"started_at"`
+	EndedAt        *string  `json:"ended_at,omitempty"`
+	LastSeenAt     string   `json:"last_seen_at"`
+	ZScore         float64  `json:"z_score"`
+	CurrentValue   float64  `json:"current_value"`
+	BaselineValue  float64  `json:"baseline_value"`
+	Multiplier     *float64 `json:"multiplier,omitempty"`
+	Open           bool     `json:"open"`
+	Description    string   `json:"description"`
+	SmartMonitorID *int     `json:"smart_monitor_id,omitempty"`
+	DeployID       *int     `json:"deploy_id,omitempty"`
+
+	// Detail-only fields
+	BaselineStdDev  *float64             `json:"baseline_std_dev,omitempty"`
+	DurationMinutes *int                 `json:"duration_minutes,omitempty"`
+	SmartMonitor    *AnomalySmartMonitor `json:"smart_monitor,omitempty"`
+	Deploy          *AnomalyDeploy       `json:"deploy,omitempty"`
+}
+
+// AnomalySmartMonitor is the joined smart monitor on an anomaly event detail.
+type AnomalySmartMonitor struct {
+	ID                int     `json:"id"`
+	Name              string  `json:"name"`
+	Kind              string  `json:"kind"`
+	SeverityThreshold float64 `json:"severity_threshold"`
+	DurationMinutes   int     `json:"duration_minutes"`
+}
+
+// AnomalyDeploy is the joined deploy on an anomaly event detail.
+type AnomalyDeploy struct {
+	ID         int    `json:"id"`
+	SHA        string `json:"sha"`
+	DeployedAt string `json:"deployed_at"`
+}
+
+// AnomalyEventsResult wraps the anomaly events list response.
+type AnomalyEventsResult struct {
+	Events []AnomalyEvent `json:"anomaly_events"`
+}
+
+// AnomalyEventResult wraps a single anomaly event response.
+type AnomalyEventResult struct {
+	Event AnomalyEvent `json:"anomaly_event"`
+}
+
 // InsightItem represents a single insight.
 type InsightItem struct {
 	ID     int                    `json:"id"`
@@ -192,8 +245,8 @@ type InsightCategory struct {
 
 // InsightsTimeframe describes the time window for insights.
 type InsightsTimeframe struct {
-	StartTime       string `json:"start_time"`
-	EndTime         string `json:"end_time"`
+	StartTime       string  `json:"start_time"`
+	EndTime         string  `json:"end_time"`
 	DurationMinutes float64 `json:"duration_minutes"`
 }
 

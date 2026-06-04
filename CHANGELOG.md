@@ -1,5 +1,16 @@
 # Changelog
 
+## Pending
+
+### Added
+
+- `scout anomalies` and `scout anomalies show <id>` — list and inspect anomaly events (#15)
+- `scout anomalies show` — include `severity_threshold` and `duration_minutes` in the smart monitor detail block (#16)
+
+### Fixed
+
+- API client now reports the HTTP status and response body for non-JSON error responses (e.g. a 404 from an undeployed endpoint) instead of a cryptic `invalid character 'N'` JSON parse error
+
 ## [0.3.3] - 2026-04-02
 
 ### Changed

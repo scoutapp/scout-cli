@@ -79,6 +79,16 @@ scout errors show 50560 --app 6
 scout errors occurrences 50560 --app 6
 ```
 
+### Anomalies
+
+```bash
+scout anomalies --app 6                                # List anomaly events (default: all states)
+scout anomalies --app 6 --state open                   # Only open anomalies
+scout anomalies --app 6 --metric response_time         # Filter by metric
+scout anomalies --app 6 --endpoint YXBpL21ldHJpY3M=    # Filter by endpoint
+scout anomalies show 1234 --app 6                      # Detail with smart_monitor and deploy context
+```
+
 ### Usage
 
 ```bash

@@ -147,6 +147,27 @@ func TestAPIError403(t *testing.T) {
 	assert.Equal(t, 403, apiErr.StatusCode)
 }
 
+func TestNonJSONErrorResponse(t *testing.T) {
+	// Simulates an endpoint that isn't deployed yet: the server returns a
+	// plain-text 404 rather than the JSON envelope.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("Not Found"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+	_, err := client.ListAnomalyEvents(6, "all", "", "", "2026-02-12T16:00:00Z", "2026-02-12T19:00:00Z")
+	require.Error(t, err)
+
+	apiErr, ok := err.(*APIError)
+	require.True(t, ok, "expected *APIError, got %T: %v", err, err)
+	assert.Equal(t, 404, apiErr.StatusCode)
+	assert.Contains(t, apiErr.Message, "Not Found")
+	// The cryptic JSON parse error must not leak through.
+	assert.NotContains(t, err.Error(), "invalid character")
+}
+
 func TestMetricPointJSON(t *testing.T) {
 	data := `["2026-02-12T19:15:00Z", 76.51]`
 	var mp MetricPoint
