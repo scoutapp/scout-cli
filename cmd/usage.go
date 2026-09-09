@@ -22,8 +22,14 @@ var (
 
 var usageCmd = &cobra.Command{
 	Use:   "usage",
-	Short: "Show transaction usage across all apps",
-	Run:   runUsage,
+	Short: "Show web transaction usage across all apps",
+	Long: `Show web transaction usage across all apps for a timeframe.
+
+Per-app figures are calculated from the throughput metric, which counts web
+requests only; background job transactions are excluded. The billed total,
+which includes background jobs, is shown by 'scout billing' and, alongside
+the per-app breakdown, by 'scout usage --billing-period'.`,
+	Run: runUsage,
 }
 
 func init() {
@@ -135,7 +141,7 @@ func runUsage(cmd *cobra.Command, args []string) {
 	total := len(results)
 	limit, _ := applyLimit(total)
 
-	headers := []string{"Name", "Transactions", "% of Total"}
+	headers := []string{"Name", "Web Transactions", "% of Web"}
 	rows := make([][]string, limit)
 	for i := 0; i < limit; i++ {
 		r := results[i]
@@ -202,7 +208,7 @@ func runUsageByDayAllApps(client *api.Client, tf usageTimeframe) {
 	total := len(days)
 	limit, _ := applyLimit(total)
 
-	headers := []string{"Day", "Transactions"}
+	headers := []string{"Day", "Web Transactions"}
 	rows := make([][]string, limit)
 	var grandTotal int64
 	for i := 0; i < limit; i++ {
@@ -373,7 +379,7 @@ func runUsageByDayByApp(client *api.Client, tf usageTimeframe) {
 		grandTotal += report.Total
 	}
 
-	headers := []string{"Day", "App", "Transactions", "% of Day", "% of Total", "Top Endpoint"}
+	headers := []string{"Day", "App", "Web Transactions", "% of Day", "% of Web", "Top Endpoint"}
 	var rows [][]string
 	for i, report := range reports {
 		if i > 0 {
@@ -401,7 +407,7 @@ func runUsageByDayByApp(client *api.Client, tf usageTimeframe) {
 	fmt.Println(output.RenderTable(headers, rows))
 
 	if grandTotal > 0 {
-		fmt.Printf("Total: %s transactions\n", formatTransactions(float64(grandTotal)))
+		fmt.Printf("Total: %s web transactions\n", formatTransactions(float64(grandTotal)))
 	}
 	printServerTotal(tf)
 }
@@ -455,7 +461,7 @@ func runUsageByDaySingleApp(client *api.Client, id int, tf usageTimeframe) {
 	total := len(days)
 	limit, _ := applyLimit(total)
 
-	headers := []string{"Day", "Transactions", "Top Endpoint"}
+	headers := []string{"Day", "Web Transactions", "Top Endpoint"}
 	rows := make([][]string, limit)
 	var grandTotal int64
 	for i := 0; i < limit; i++ {
@@ -726,7 +732,7 @@ func printTimeframe(from, to string) {
 // printTotalFooter prints the grand total line if non-zero.
 func printTotalFooter(grandTotal float64) {
 	if grandTotal > 0 {
-		fmt.Printf("\nTotal: %s transactions\n", formatTransactions(grandTotal))
+		fmt.Printf("\nTotal: %s web transactions\n", formatTransactions(grandTotal))
 	}
 }
 

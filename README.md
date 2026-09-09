@@ -92,7 +92,7 @@ scout anomalies show 1234 --app 6                      # Detail with smart_monit
 ### Usage
 
 ```bash
-scout usage                                    # Transaction usage across all apps (last 3 hours)
+scout usage                                    # Web transaction usage across all apps (last 3 hours)
 scout usage --from 30d                         # Last 30 days
 scout usage --from 7d --all                    # Include apps with zero usage
 scout usage --by-day --from 30d                # Daily totals
@@ -102,6 +102,8 @@ scout usage --from 14d --json                  # JSON output
 scout usage --billing-period                   # Current billing period, with the server-side billed total
 scout usage --by-day --by-app --billing-period # Daily per-app breakdown over the billing period
 ```
+
+`scout usage` counts web transactions from the throughput metric; background jobs are excluded. The billed total, which includes jobs, is shown by `scout billing` and by `scout usage --billing-period`.
 
 ### Billing
 
