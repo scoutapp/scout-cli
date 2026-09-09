@@ -50,3 +50,14 @@ func TestRenderSpanTreeMemoryFooter(t *testing.T) {
 	out = RenderSpanTree(trace)
 	assert.NotContains(t, out, "Memory:")
 }
+
+func TestRenderSpanTreeLegacyDurationIsMilliseconds(t *testing.T) {
+	trace := api.TraceDetail{
+		ID:            2,
+		MetricName:    "Controller/home/index",
+		TotalCallTime: 1500, // ms
+		LegacyFormat:  true,
+	}
+	out := RenderSpanTree(trace)
+	assert.Contains(t, out, "Trace #2 — Controller/home/index — 1.5s")
+}

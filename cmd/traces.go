@@ -71,7 +71,7 @@ func runTracesList(cmd *cobra.Command, args []string) {
 		rows[i] = []string{
 			strconv.Itoa(t.ID),
 			output.FormatRelativeTime(t.Time),
-			output.FormatSeconds(t.TotalCallTime),
+			output.FormatMs(t.TotalCallTime),
 			output.FormatMB(t.MemDelta),
 			t.MetricName,
 			t.URI,

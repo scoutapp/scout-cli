@@ -14,7 +14,8 @@ func RenderSpanTree(trace api.TraceDetail) string {
 
 	totalMs := trace.DurationInSeconds * 1000
 	if totalMs == 0 {
-		totalMs = trace.TotalCallTime * 1000
+		// total_call_time is reported in milliseconds by the API.
+		totalMs = trace.TotalCallTime
 	}
 
 	// Header
