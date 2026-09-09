@@ -83,6 +83,9 @@ func FormatPercent(n float64) string {
 
 func FormatBytes(bytes int64) string {
 	b := float64(bytes)
+	if b >= 1e12 {
+		return fmt.Sprintf("%.1f TB", b/1e12)
+	}
 	if b >= 1e9 {
 		return fmt.Sprintf("%.1f GB", b/1e9)
 	}
