@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 )
 
 // APIResponse is the standard envelope for all API responses.
@@ -79,6 +80,139 @@ type EndpointEntry struct {
 	FormattedMethodName string  `json:"formatted_method_name"`
 	Link                string  `json:"link"`
 	P95                 float64 `json:"95th_percentile"`
+}
+
+// JobEntry represents a background job's performance data in a list.
+type JobEntry struct {
+	// FullName is "queue/JobName"; JobID is its Base64 URL-safe encoding.
+	FullName string `json:"full_name"`
+	Name     string `json:"name"`
+	Queue    string `json:"queue"`
+	JobID    string `json:"job_id"`
+	// Throughput is jobs per minute.
+	Throughput float64 `json:"throughput"`
+	// ExecutionTime is the average execution time in milliseconds.
+	ExecutionTime float64 `json:"execution_time"`
+	// TimeConsumed is the fraction (0–1) of total job time consumed by this job.
+	TimeConsumed float64 `json:"time_consumed"`
+	// Latency is the average queue latency in seconds.
+	Latency float64 `json:"latency"`
+}
+
+// JobTraceEntry represents a background job trace in a list.
+type JobTraceEntry struct {
+	ID   int    `json:"id"`
+	Time string `json:"time"`
+	// Duration is the execution duration in milliseconds.
+	Duration   float64                `json:"duration"`
+	Name       string                 `json:"name"`
+	Queue      string                 `json:"queue"`
+	MetricName string                 `json:"metric_name"`
+	Context    map[string]interface{} `json:"context"`
+}
+
+// JobTracesResult wraps the job traces list response.
+type JobTracesResult struct {
+	Traces []JobTraceEntry `json:"traces"`
+}
+
+// JobMetricsResult contains a job metric summary and its time series.
+//
+// The API returns different shapes per metric type: the summary is either a
+// number or an object of numbers, and the series is either a flat array of
+// points or an object keyed by category (e.g. "ActiveRecord", "Ruby"). This
+// type normalizes both into a single Summary and a map of named sub-series.
+type JobMetricsResult struct {
+	Summary float64                  `json:"summary"`
+	Series  map[string][]MetricPoint `json:"series"`
+}
+
+func (r *JobMetricsResult) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Summaries map[string]json.RawMessage `json:"summaries"`
+		Series    map[string]json.RawMessage `json:"series"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	r.Summary = 0
+	r.Series = map[string][]MetricPoint{}
+
+	for _, sum := range raw.Summaries {
+		if isJSONNull(sum) {
+			continue
+		}
+		var n float64
+		if err := json.Unmarshal(sum, &n); err == nil {
+			r.Summary += n
+			continue
+		}
+		var m map[string]float64
+		if err := json.Unmarshal(sum, &m); err != nil {
+			return fmt.Errorf("job metrics: unexpected summary shape: %w", err)
+		}
+		for _, v := range m {
+			r.Summary += v
+		}
+	}
+
+	for metricType, series := range raw.Series {
+		if isJSONNull(series) {
+			continue
+		}
+		var flat []MetricPoint
+		if err := json.Unmarshal(series, &flat); err == nil {
+			if len(flat) > 0 {
+				r.Series[metricType] = flat
+			}
+			continue
+		}
+		var nested map[string][]MetricPoint
+		if err := json.Unmarshal(series, &nested); err != nil {
+			return fmt.Errorf("job metrics: unexpected series shape: %w", err)
+		}
+		for category, pts := range nested {
+			if len(pts) > 0 {
+				r.Series[category] = pts
+			}
+		}
+	}
+	return nil
+}
+
+// Total returns a single series for charting: the only sub-series when there
+// is exactly one, the API-provided "total" sub-series when present (e.g.
+// execution_time returns per-category series plus their total), otherwise the
+// per-timestamp sum across all sub-series, sorted by timestamp ascending.
+func (r *JobMetricsResult) Total() []MetricPoint {
+	if r == nil || len(r.Series) == 0 {
+		return nil
+	}
+	if len(r.Series) == 1 {
+		for _, pts := range r.Series {
+			return pts
+		}
+	}
+	if total, ok := r.Series["total"]; ok {
+		return total
+	}
+	sums := make(map[string]float64)
+	for _, pts := range r.Series {
+		for _, p := range pts {
+			sums[p.Timestamp] += p.Value
+		}
+	}
+	total := make([]MetricPoint, 0, len(sums))
+	for ts, v := range sums {
+		total = append(total, MetricPoint{Timestamp: ts, Value: v})
+	}
+	sort.Slice(total, func(i, j int) bool { return total[i].Timestamp < total[j].Timestamp })
+	return total
+}
+
+func isJSONNull(raw json.RawMessage) bool {
+	return len(raw) == 0 || string(raw) == "null"
 }
 
 // TraceEntry represents a trace in a list.

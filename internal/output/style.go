@@ -77,6 +77,20 @@ func FormatRPM(n float64) string {
 	return fmt.Sprintf("%.0f rpm", n)
 }
 
+// FormatPerMinute formats a per-minute rate (e.g. background job throughput).
+func FormatPerMinute(n float64) string {
+	switch {
+	case n >= 1000:
+		return fmt.Sprintf("%.1fk/min", n/1000)
+	case n >= 10:
+		return fmt.Sprintf("%.0f/min", n)
+	case n >= 1:
+		return fmt.Sprintf("%.1f/min", n)
+	default:
+		return fmt.Sprintf("%.2f/min", n)
+	}
+}
+
 func FormatPercent(n float64) string {
 	return fmt.Sprintf("%.1f%%", n*100)
 }

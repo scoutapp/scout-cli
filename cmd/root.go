@@ -31,7 +31,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:     "scout",
 	Short:   "Scout APM CLI — monitor application performance from the terminal",
-	Long:    "A command-line interface for Scout APM. View apps, metrics, endpoints, traces, errors, and insights.\n\nWhen piped, output defaults to TOON format (token-efficient for LLMs). Use --json for raw JSON or --toon to force TOON in a terminal.",
+	Long:    "A command-line interface for Scout APM. View apps, metrics, endpoints, background jobs, traces, errors, and insights.\n\nWhen piped, output defaults to TOON format (token-efficient for LLMs). Use --json for raw JSON or --toon to force TOON in a terminal.",
 	Version: Version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Auto-enable TOON when piped (unless --json was explicitly set)

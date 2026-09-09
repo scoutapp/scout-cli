@@ -1,0 +1,28 @@
+{
+  "header": {
+    "status": { "code": 200, "message": "OK" },
+    "apiVersion": "0.1"
+  },
+  "results": [
+    {
+      "full_name": "default/Checkin::TraceAnalysisJob",
+      "name": "Checkin::TraceAnalysisJob",
+      "queue": "default",
+      "throughput": 1302.9635912698413,
+      "execution_time": 110.66311327207139,
+      "time_consumed": 0.2633695370502584,
+      "latency": 2.5040768210511826,
+      "job_id": "ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i"
+    },
+    {
+      "full_name": "smart_monitoring/SmartMonitoring::MonitorScanJob",
+      "name": "SmartMonitoring::MonitorScanJob",
+      "queue": "smart_monitoring",
+      "throughput": 92.21666666666667,
+      "execution_time": 1220.64839932268,
+      "time_consumed": 0.2056034424019686,
+      "latency": 0.5925837734360884,
+      "job_id": "c21hcnRfbW9uaXRvcmluZy9TbWFydE1vbml0b3Jpbmc6Ok1vbml0b3JTY2FuSm9i"
+    }
+  ]
+}
