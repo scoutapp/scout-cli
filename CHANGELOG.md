@@ -1,5 +1,11 @@
 # Changelog
 
+## Pending
+
+### Fixed
+
+- `scout traces list` and `scout traces show` no longer fail with `cannot unmarshal number ... into Go struct field ... mem_delta of type int64` — the API reports `mem_delta` as a float in megabytes, so it is now decoded as such and displayed as MB (#19)
+
 ## [0.4.0] - 2026-06-04
 
 ### Added

@@ -95,6 +95,20 @@ func FormatBytes(bytes int64) string {
 	return fmt.Sprintf("%d B", bytes)
 }
 
+// FormatMB formats a memory size given in megabytes (the unit the Scout API
+// uses for trace mem_delta values).
+func FormatMB(mb float64) string {
+	abs := math.Abs(mb)
+	switch {
+	case abs >= 1000:
+		return fmt.Sprintf("%.1f GB", mb/1000)
+	case abs >= 10, abs == 0:
+		return fmt.Sprintf("%.0f MB", mb)
+	default:
+		return fmt.Sprintf("%.1f MB", mb)
+	}
+}
+
 func FormatRelativeTime(iso string) string {
 	t, err := time.Parse(time.RFC3339, iso)
 	if err != nil {

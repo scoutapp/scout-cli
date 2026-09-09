@@ -72,7 +72,7 @@ func runTracesList(cmd *cobra.Command, args []string) {
 			strconv.Itoa(t.ID),
 			output.FormatRelativeTime(t.Time),
 			output.FormatSeconds(t.TotalCallTime),
-			output.FormatBytes(t.MemDelta),
+			output.FormatMB(t.MemDelta),
 			t.MetricName,
 			t.URI,
 		}
