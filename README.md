@@ -12,6 +12,26 @@ Built in Go with [Cobra](https://github.com/spf13/cobra), [Lipgloss](https://git
 brew install scoutapp/tap/scout-cli
 ```
 
+On Homebrew 6 and later, third-party taps require [tap trust](https://docs.brew.sh/Tap-Trust). The fully qualified name above trusts only the `scout-cli` formula, not the whole tap.
+
+**Upgrading from Homebrew 5?** If `brew upgrade` warns that `scoutapp/tap` is not trusted, grant trust and upgrade again:
+
+```bash
+brew trust --formula scoutapp/tap/scout-cli   # or: brew trust scoutapp/tap
+brew upgrade scout-cli
+```
+
+**Brewfile / `brew bundle`:**
+
+```bash
+brew bundle install --file=- <<'BREWFILE'
+tap "scoutapp/tap"
+brew "scoutapp/tap/scout-cli", trusted: true
+BREWFILE
+```
+
+Use `tap "scoutapp/tap", trusted: true` instead if you want to trust the whole tap.
+
 ### Download binary
 
 Pre-built binaries for macOS, Linux, and Windows are available on the [GitHub Releases](https://github.com/scoutapp/scout-cli/releases) page.
