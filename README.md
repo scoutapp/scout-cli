@@ -68,9 +68,9 @@ scout endpoints metrics --endpoint YXBpL21ldHJpY3Mvc2hvdw== --type response_time
 
 ```bash
 scout jobs list --app 6
-scout jobs metrics --job ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i --type execution_time --app 6
-scout jobs metrics --job default/Checkin::TraceAnalysisJob --type throughput --app 6   # queue/JobName also works
-scout traces list --job ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i --app 6
+scout jobs metrics --job ZGVmYXVsdC9NeVdvcmtlcg== --type execution_time --app 6
+scout jobs metrics --job default/MyWorker --type throughput --app 6   # queue/JobName also works
+scout traces list --job ZGVmYXVsdC9NeVdvcmtlcg== --app 6
 ```
 
 Valid job metric types: `throughput`, `execution_time`, `latency`, `errors`, `allocations`
@@ -81,7 +81,7 @@ Job IDs are in the `scout jobs list --json` output (`job_id`), or pass the job's
 
 ```bash
 scout traces list --endpoint YXBpL21ldHJpY3Mvc2hvdw== --app 6
-scout traces list --job ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i --app 6
+scout traces list --job ZGVmYXVsdC9NeVdvcmtlcg== --app 6
 scout traces show 12345 --app 6
 ```
 

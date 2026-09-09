@@ -17,28 +17,28 @@ func envelope(results string) string {
 func TestListJobs(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/v0/apps/6/jobs", r.URL.Path)
-		assert.Equal(t, "2026-09-03T00:00:00Z", r.URL.Query().Get("from"))
+		assert.Equal(t, "2026-01-01T00:00:00Z", r.URL.Query().Get("from"))
 		assert.Equal(t, "test-key", r.Header.Get("X-SCOUT-API"))
 		// Jobs response is a bare array
 		_, _ = w.Write([]byte(envelope(`[
-			{"full_name":"default/Checkin::TraceAnalysisJob","name":"Checkin::TraceAnalysisJob","queue":"default","throughput":1302.9635912698413,"execution_time":110.66311327207139,"time_consumed":0.2633695370502584,"latency":2.5040768210511826,"job_id":"ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i"},
-			{"full_name":"mailers/DigestEmail::DeliverJob","name":"DigestEmail::DeliverJob","queue":"mailers","throughput":2.1,"execution_time":828.4,"time_consumed":0.00288,"latency":1.217,"job_id":"bWFpbGVycy9EaWdlc3RFbWFpbDo6RGVsaXZlckpvYg=="}
+			{"full_name":"default/MyWorker","name":"MyWorker","queue":"default","throughput":120.5,"execution_time":85.25,"time_consumed":0.6,"latency":1.5,"job_id":"ZGVmYXVsdC9NeVdvcmtlcg=="},
+			{"full_name":"mailers/SendWelcomeEmailJob","name":"SendWelcomeEmailJob","queue":"mailers","throughput":3.2,"execution_time":640,"time_consumed":0.4,"latency":0.25,"job_id":"bWFpbGVycy9TZW5kV2VsY29tZUVtYWlsSm9i"}
 		]`)))
 	}))
 	defer server.Close()
 
 	client := NewClient(server.URL, "test-key")
-	jobs, err := client.ListJobs(6, "2026-09-03T00:00:00Z", "2026-09-09T00:00:00Z")
+	jobs, err := client.ListJobs(6, "2026-01-01T00:00:00Z", "2026-01-07T00:00:00Z")
 	require.NoError(t, err)
 	require.Len(t, jobs, 2)
-	assert.Equal(t, "default/Checkin::TraceAnalysisJob", jobs[0].FullName)
-	assert.Equal(t, "Checkin::TraceAnalysisJob", jobs[0].Name)
+	assert.Equal(t, "default/MyWorker", jobs[0].FullName)
+	assert.Equal(t, "MyWorker", jobs[0].Name)
 	assert.Equal(t, "default", jobs[0].Queue)
-	assert.Equal(t, "ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i", jobs[0].JobID)
-	assert.InDelta(t, 1302.96, jobs[0].Throughput, 0.01)
-	assert.InDelta(t, 110.66, jobs[0].ExecutionTime, 0.01)
-	assert.InDelta(t, 0.2634, jobs[0].TimeConsumed, 0.0001)
-	assert.InDelta(t, 2.504, jobs[0].Latency, 0.001)
+	assert.Equal(t, "ZGVmYXVsdC9NeVdvcmtlcg==", jobs[0].JobID)
+	assert.InDelta(t, 120.5, jobs[0].Throughput, 0.01)
+	assert.InDelta(t, 85.25, jobs[0].ExecutionTime, 0.01)
+	assert.InDelta(t, 0.6, jobs[0].TimeConsumed, 0.0001)
+	assert.InDelta(t, 1.5, jobs[0].Latency, 0.001)
 	assert.Equal(t, "mailers", jobs[1].Queue)
 }
 
@@ -55,21 +55,21 @@ func TestGetJobMetrics(t *testing.T) {
 		{
 			name:         "throughput flat array",
 			metricType:   "throughput",
-			results:      `{"summaries":{"throughput":1294.74},"series":{"throughput":[["2026-09-03T22:00:00Z",1059.45],["2026-09-03T23:00:00Z",1282.5]]}}`,
-			wantSummary:  1294.74,
+			results:      `{"summaries":{"throughput":120.5},"series":{"throughput":[["2026-01-01T00:00:00Z",100.25],["2026-01-01T01:00:00Z",140.75]]}}`,
+			wantSummary:  120.5,
 			wantSeries:   []string{"throughput"},
 			wantTotalLen: 2,
 			wantTotalVals: []float64{
-				1059.45, 1282.5,
+				100.25, 140.75,
 			},
 		},
 		{
 			name:       "execution_time nested categories summed by timestamp",
 			metricType: "execution_time",
-			results: `{"summaries":{"execution_time":110.96},"series":{"execution_time":{
-				"ActiveRecord":[["2026-09-03T22:00:00Z",30],["2026-09-03T23:00:00Z",20]],
-				"Ruby":[["2026-09-03T23:00:00Z",5],["2026-09-03T22:00:00Z",70]]}}}`,
-			wantSummary:   110.96,
+			results: `{"summaries":{"execution_time":85.25},"series":{"execution_time":{
+				"ActiveRecord":[["2026-01-01T00:00:00Z",30],["2026-01-01T01:00:00Z",20]],
+				"Ruby":[["2026-01-01T01:00:00Z",5],["2026-01-01T00:00:00Z",70]]}}}`,
+			wantSummary:   85.25,
 			wantSeries:    []string{"ActiveRecord", "Ruby"},
 			wantTotalLen:  2,
 			wantTotalVals: []float64{100, 25},
@@ -78,9 +78,9 @@ func TestGetJobMetrics(t *testing.T) {
 			name:       "execution_time with API-provided total is not double counted",
 			metricType: "execution_time",
 			results: `{"summaries":{"execution_time":110},"series":{"execution_time":{
-				"ActiveRecord":[["2026-09-03T22:00:00Z",30]],
-				"Job":[["2026-09-03T22:00:00Z",80]],
-				"total":[["2026-09-03T22:00:00Z",110]]}}}`,
+				"ActiveRecord":[["2026-01-01T00:00:00Z",30]],
+				"Job":[["2026-01-01T00:00:00Z",80]],
+				"total":[["2026-01-01T00:00:00Z",110]]}}}`,
 			wantSummary:   110,
 			wantSeries:    []string{"ActiveRecord", "Job", "total"},
 			wantTotalLen:  1,
@@ -89,29 +89,29 @@ func TestGetJobMetrics(t *testing.T) {
 		{
 			name:          "latency single-key object",
 			metricType:    "latency",
-			results:       `{"summaries":{"latency":2568.46},"series":{"latency":{"Latency":[["2026-09-03T22:00:00Z",2239.77]]}}}`,
-			wantSummary:   2568.46,
+			results:       `{"summaries":{"latency":1500},"series":{"latency":{"Latency":[["2026-01-01T00:00:00Z",1450]]}}}`,
+			wantSummary:   1500,
 			wantSeries:    []string{"Latency"},
 			wantTotalLen:  1,
-			wantTotalVals: []float64{2239.77},
+			wantTotalVals: []float64{1450},
 		},
 		{
 			name:          "errors object summary",
 			metricType:    "errors",
-			results:       `{"summaries":{"errors":{"Job/default/Checkin::TraceAnalysisJob":0.026}},"series":{"errors":{"default/Checkin::TraceAnalysisJob":[["2026-09-03T22:00:00Z",0.05],["2026-09-03T23:00:00Z",0.0166]]}}}`,
-			wantSummary:   0.026,
-			wantSeries:    []string{"default/Checkin::TraceAnalysisJob"},
+			results:       `{"summaries":{"errors":{"Job/default/MyWorker":0.02}},"series":{"errors":{"default/MyWorker":[["2026-01-01T00:00:00Z",0.05],["2026-01-01T01:00:00Z",0.01]]}}}`,
+			wantSummary:   0.02,
+			wantSeries:    []string{"default/MyWorker"},
 			wantTotalLen:  2,
-			wantTotalVals: []float64{0.05, 0.0166},
+			wantTotalVals: []float64{0.05, 0.01},
 		},
 		{
 			name:          "allocations integer values",
 			metricType:    "allocations",
-			results:       `{"summaries":{"allocations":821813},"series":{"allocations":{"Job/Checkin::TraceAnalysisJob":[["2026-09-03T22:00:00Z",180764]]}}}`,
-			wantSummary:   821813,
-			wantSeries:    []string{"Job/Checkin::TraceAnalysisJob"},
+			results:       `{"summaries":{"allocations":50000},"series":{"allocations":{"Job/MyWorker":[["2026-01-01T00:00:00Z",12345]]}}}`,
+			wantSummary:   50000,
+			wantSeries:    []string{"Job/MyWorker"},
 			wantTotalLen:  1,
-			wantTotalVals: []float64{180764},
+			wantTotalVals: []float64{12345},
 		},
 		{
 			name:         "unknown job empty flat series",
@@ -134,13 +134,13 @@ func TestGetJobMetrics(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/api/v0/apps/6/jobs/ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i/metrics/"+tt.metricType, r.URL.Path)
+				assert.Equal(t, "/api/v0/apps/6/jobs/ZGVmYXVsdC9NeVdvcmtlcg==/metrics/"+tt.metricType, r.URL.Path)
 				_, _ = w.Write([]byte(envelope(tt.results)))
 			}))
 			defer server.Close()
 
 			client := NewClient(server.URL, "test-key")
-			m, err := client.GetJobMetrics(6, "ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i", tt.metricType, "2026-09-03T00:00:00Z", "2026-09-09T00:00:00Z")
+			m, err := client.GetJobMetrics(6, "ZGVmYXVsdC9NeVdvcmtlcg==", tt.metricType, "2026-01-01T00:00:00Z", "2026-01-07T00:00:00Z")
 			require.NoError(t, err)
 			assert.InDelta(t, tt.wantSummary, m.Summary, 0.001)
 
@@ -164,7 +164,7 @@ func TestGetJobMetrics(t *testing.T) {
 }
 
 func TestJobMetricsResultJSONRoundTrip(t *testing.T) {
-	raw := `{"summaries":{"execution_time":100},"series":{"execution_time":{"ActiveRecord":[["2026-09-03T22:00:00Z",30]],"Ruby":[["2026-09-03T22:00:00Z",70]]}}}`
+	raw := `{"summaries":{"execution_time":100},"series":{"execution_time":{"ActiveRecord":[["2026-01-01T00:00:00Z",30]],"Ruby":[["2026-01-01T00:00:00Z",70]]}}}`
 	var m JobMetricsResult
 	require.NoError(t, json.Unmarshal([]byte(raw), &m))
 
@@ -188,25 +188,25 @@ func TestJobMetricsResultUnexpectedShape(t *testing.T) {
 
 func TestListJobTraces(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v0/apps/6/jobs/ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i/traces", r.URL.Path)
-		assert.Equal(t, "2026-09-09T00:00:00Z", r.URL.Query().Get("to"))
+		assert.Equal(t, "/api/v0/apps/6/jobs/ZGVmYXVsdC9NeVdvcmtlcg==/traces", r.URL.Path)
+		assert.Equal(t, "2026-01-07T00:00:00Z", r.URL.Query().Get("to"))
 		_, _ = w.Write([]byte(envelope(`{"traces":[
-			{"id":76462021,"time":"2026-09-08T11:45:00-04:00","duration":23271,"name":"Checkin::TraceAnalysisJob","queue":"default","metric_name":"Job/default/Checkin::TraceAnalysisJob","context":{"host":"web-1"}},
-			{"id":76462022,"time":"2026-09-08T11:46:00-04:00","duration":1200.5,"name":"Checkin::TraceAnalysisJob","queue":"default","metric_name":"Job/default/Checkin::TraceAnalysisJob","context":null}
+			{"id":501,"time":"2026-01-05T11:45:00Z","duration":2500,"name":"MyWorker","queue":"default","metric_name":"Job/default/MyWorker","context":{"host":"web-1"}},
+			{"id":502,"time":"2026-01-05T11:46:00Z","duration":1200.5,"name":"MyWorker","queue":"default","metric_name":"Job/default/MyWorker","context":null}
 		]}`)))
 	}))
 	defer server.Close()
 
 	client := NewClient(server.URL, "test-key")
-	traces, err := client.ListJobTraces(6, "ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i", "2026-09-03T00:00:00Z", "2026-09-09T00:00:00Z")
+	traces, err := client.ListJobTraces(6, "ZGVmYXVsdC9NeVdvcmtlcg==", "2026-01-01T00:00:00Z", "2026-01-07T00:00:00Z")
 	require.NoError(t, err)
 	require.Len(t, traces, 2)
-	assert.Equal(t, 76462021, traces[0].ID)
-	assert.Equal(t, "2026-09-08T11:45:00-04:00", traces[0].Time)
-	assert.InDelta(t, 23271, traces[0].Duration, 0.01)
-	assert.Equal(t, "Checkin::TraceAnalysisJob", traces[0].Name)
+	assert.Equal(t, 501, traces[0].ID)
+	assert.Equal(t, "2026-01-05T11:45:00Z", traces[0].Time)
+	assert.InDelta(t, 2500, traces[0].Duration, 0.01)
+	assert.Equal(t, "MyWorker", traces[0].Name)
 	assert.Equal(t, "default", traces[0].Queue)
-	assert.Equal(t, "Job/default/Checkin::TraceAnalysisJob", traces[0].MetricName)
+	assert.Equal(t, "Job/default/MyWorker", traces[0].MetricName)
 	assert.Equal(t, "web-1", traces[0].Context["host"])
 	assert.InDelta(t, 1200.5, traces[1].Duration, 0.01)
 }
@@ -221,7 +221,7 @@ func TestListJobTracesNotFound(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, "test-key")
-	_, err := client.ListJobTraces(6, "bm9wZQ==", "2026-09-03T00:00:00Z", "2026-09-09T00:00:00Z")
+	_, err := client.ListJobTraces(6, "bm9wZQ==", "2026-01-01T00:00:00Z", "2026-01-07T00:00:00Z")
 	require.Error(t, err)
 	apiErr, ok := err.(*APIError)
 	require.True(t, ok)

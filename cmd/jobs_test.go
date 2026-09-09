@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	testJobFullName = "default/Checkin::TraceAnalysisJob"
-	testJobID       = "ZGVmYXVsdC9DaGVja2luOjpUcmFjZUFuYWx5c2lzSm9i"
+	testJobFullName = "default/MyWorker"
+	testJobID       = "ZGVmYXVsdC9NeVdvcmtlcg=="
 )
 
 func TestResolveJobID(t *testing.T) {
@@ -20,7 +20,7 @@ func TestResolveJobID(t *testing.T) {
 	}{
 		{"full name is encoded", testJobFullName, testJobID},
 		{"encoded id passes through", testJobID, testJobID},
-		{"full name needing padding", "default/PlanTransactionsEnforcementJob", "ZGVmYXVsdC9QbGFuVHJhbnNhY3Rpb25zRW5mb3JjZW1lbnRKb2I="},
+		{"full name needing padding", "default/ReportJob", "ZGVmYXVsdC9SZXBvcnRKb2I="},
 		{"Job/ prefixed full name is encoded", "Job/default/MyWorker", "Sm9iL2RlZmF1bHQvTXlXb3JrZXI="},
 		{"empty passes through", "", ""},
 	}
@@ -40,14 +40,14 @@ func TestDecodeJobID(t *testing.T) {
 	assert.Equal(t, testJobID, resolveJobID(name))
 
 	// Padded id
-	name, ok = decodeJobID("ZGVmYXVsdC9QbGFuVHJhbnNhY3Rpb25zRW5mb3JjZW1lbnRKb2I=")
+	name, ok = decodeJobID("ZGVmYXVsdC9SZXBvcnRKb2I=")
 	assert.True(t, ok)
-	assert.Equal(t, "default/PlanTransactionsEnforcementJob", name)
+	assert.Equal(t, "default/ReportJob", name)
 
 	// Unpadded id is tolerated
-	name, ok = decodeJobID("ZGVmYXVsdC9QbGFuVHJhbnNhY3Rpb25zRW5mb3JjZW1lbnRKb2I")
+	name, ok = decodeJobID("ZGVmYXVsdC9SZXBvcnRKb2I")
 	assert.True(t, ok)
-	assert.Equal(t, "default/PlanTransactionsEnforcementJob", name)
+	assert.Equal(t, "default/ReportJob", name)
 
 	_, ok = decodeJobID("")
 	assert.False(t, ok)
@@ -79,14 +79,14 @@ func TestUnitForJobMetricType(t *testing.T) {
 }
 
 func TestFormatTimeConsumed(t *testing.T) {
-	assert.Equal(t, "26.3%", formatTimeConsumed(0.2633695))
+	assert.Equal(t, "60.0%", formatTimeConsumed(0.6))
 	assert.Equal(t, "0.0%", formatTimeConsumed(0.00000059))
 	assert.Equal(t, "100.0%", formatTimeConsumed(1))
 }
 
 func TestChartSeries(t *testing.T) {
-	latency := []api.MetricPoint{{Timestamp: "2026-09-03T22:00:00Z", Value: 2239.77}}
-	execTotal := []api.MetricPoint{{Timestamp: "2026-09-03T22:00:00Z", Value: 107.2}}
+	latency := []api.MetricPoint{{Timestamp: "2026-01-01T00:00:00Z", Value: 1500}}
+	execTotal := []api.MetricPoint{{Timestamp: "2026-01-01T00:00:00Z", Value: 85.25}}
 
 	// latency: the "total" sub-series is execution time, so chart "Latency".
 	m := &api.JobMetricsResult{Series: map[string][]api.MetricPoint{"Latency": latency, "total": execTotal}}

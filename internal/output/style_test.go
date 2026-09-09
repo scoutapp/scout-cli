@@ -52,7 +52,7 @@ func TestFormatPerMinute(t *testing.T) {
 		input    float64
 		expected string
 	}{
-		{1302.96, "1.3k/min"},
+		{1340, "1.3k/min"},
 		{1000, "1.0k/min"},
 		{92.2, "92/min"},
 		{10, "10/min"},
