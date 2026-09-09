@@ -99,7 +99,7 @@ func TestRenderBillingSummary(t *testing.T) {
 	assert.Contains(t, out, "Active: 15")
 	assert.Contains(t, out, "Count: 1,156")
 	assert.Contains(t, out, "Used: 189.2 GB")
-	assert.Contains(t, out, "Limit: 10736.3 GB")
+	assert.Contains(t, out, "Limit: 10.7 TB")
 }
 
 func TestRenderBillingSummaryMinimal(t *testing.T) {
