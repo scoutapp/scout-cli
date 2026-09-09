@@ -182,3 +182,73 @@ func TestMetricPointJSON(t *testing.T) {
 	assert.Contains(t, string(out), "2026-02-12T19:15:00Z")
 	assert.Contains(t, string(out), "76.51")
 }
+
+func TestGetOrgUsage(t *testing.T) {
+	// Exact payload observed from the live /api/v0/usage endpoint.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v0/usage", r.URL.Path)
+		assert.Equal(t, "test-key", r.Header.Get("X-SCOUT-API"))
+		_, _ = w.Write([]byte(`{"header":{"status":{"code":200,"message":"OK"},"apiVersion":"0.1"},"results":{"billing_period":{"start":"2026-09-06T00:00:00+00:00","end":"2026-10-05T00:00:00+00:00"},"pricing_style":"per node","apm":{"total_transactions":329476789},"nodes":{"active_count":15},"errors":{"count":1156,"limit":1000000000},"logs":{"bytes_used":189223223871,"limit_bytes":10736344498176}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+	usage, err := client.GetOrgUsage()
+	require.NoError(t, err)
+
+	assert.Equal(t, "2026-09-06T00:00:00+00:00", usage.BillingPeriod.Start)
+	assert.Equal(t, "2026-10-05T00:00:00+00:00", usage.BillingPeriod.End)
+	assert.Equal(t, "per node", usage.PricingStyle)
+
+	require.NotNil(t, usage.APM)
+	assert.Equal(t, int64(329476789), usage.APM.TotalTransactions)
+	assert.Nil(t, usage.APM.Limit, "per-node plans have no transaction limit")
+
+	require.NotNil(t, usage.Nodes)
+	assert.Equal(t, 15, usage.Nodes.ActiveCount)
+
+	require.NotNil(t, usage.Errors)
+	assert.Equal(t, int64(1156), usage.Errors.Count)
+	assert.Equal(t, int64(1000000000), usage.Errors.Limit)
+
+	require.NotNil(t, usage.Logs)
+	assert.Equal(t, int64(189223223871), usage.Logs.BytesUsed)
+	require.NotNil(t, usage.Logs.LimitBytes)
+	assert.Equal(t, int64(10736344498176), *usage.Logs.LimitBytes)
+}
+
+func TestGetOrgUsageMinimal(t *testing.T) {
+	// Sections are omitted when the org has no per-node pricing, errors
+	// add-on, or logs integration, and apm.limit is absent without a plan cap.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"header":{"status":{"code":200,"message":"OK"},"apiVersion":"0.1"},"results":{"billing_period":{"start":"2026-09-01T00:00:00+00:00","end":"2026-10-01T00:00:00+00:00"},"pricing_style":"per transaction","apm":{"total_transactions":12345}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+	usage, err := client.GetOrgUsage()
+	require.NoError(t, err)
+
+	require.NotNil(t, usage.APM)
+	assert.Equal(t, int64(12345), usage.APM.TotalTransactions)
+	assert.Nil(t, usage.APM.Limit)
+	assert.Nil(t, usage.Nodes)
+	assert.Nil(t, usage.Errors)
+	assert.Nil(t, usage.Logs)
+}
+
+func TestGetOrgUsageWithLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"header":{"status":{"code":200,"message":"OK"},"apiVersion":"0.1"},"results":{"billing_period":{"start":null,"end":null},"pricing_style":"per transaction","apm":{"total_transactions":900000,"limit":1000000}}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+	usage, err := client.GetOrgUsage()
+	require.NoError(t, err)
+
+	assert.Empty(t, usage.BillingPeriod.Start, "null billing dates decode as empty strings")
+	assert.Empty(t, usage.BillingPeriod.End)
+	require.NotNil(t, usage.APM.Limit)
+	assert.Equal(t, int64(1000000), *usage.APM.Limit)
+}

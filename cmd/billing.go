@@ -13,8 +13,19 @@ import (
 
 var billingCmd = &cobra.Command{
 	Use:   "billing",
-	Short: "Show billing period usage summary",
-	Run:   runBilling,
+	Short: "Show usage for the current billing period",
+	Long: `Show the organization's usage for the current billing period, as reported
+by the Scout API's /usage endpoint.
+
+Includes the billing period dates, pricing style, APM transaction count (with
+the plan limit when one applies), active node count (per-node pricing), error
+count (when the errors add-on is enabled), and log bytes ingested (when a logs
+integration is enabled).
+
+Unlike 'scout usage', which estimates web transactions from throughput
+metrics, these figures are the exact values Scout bills against and include
+background jobs.`,
+	Run: runBilling,
 }
 
 func init() {
@@ -33,77 +44,98 @@ func runBilling(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if jsonOutput {
-		outputJSON(usage)
+	if structuredOutput(usage) {
 		return
 	}
 
-	printBillingSummary(usage)
+	fmt.Print(renderBillingSummary(usage))
 }
 
-func printBillingSummary(u *api.OrgUsage) {
-	// Billing period header
-	startStr := formatBillingDate(u.BillingPeriod.Start)
-	endStr := formatBillingDate(u.BillingPeriod.End)
-	remaining := daysRemaining(u.BillingPeriod.End)
+// renderBillingSummary formats the org usage payload as a human-readable
+// report with one block per section the API returned.
+func renderBillingSummary(u *api.OrgUsage) string {
+	var sections []string
 
-	fmt.Println(output.BoldStyle.Render("Billing Period"))
-	fmt.Printf("  %s → %s", startStr, endStr)
-	if remaining >= 0 {
-		fmt.Printf("  %s", output.DimStyle.Render(fmt.Sprintf("(%d days remaining)", remaining)))
+	var period []string
+	if u.BillingPeriod.Start == "" || u.BillingPeriod.End == "" {
+		period = append(period, output.DimStyle.Render("not available"))
+	} else {
+		line := fmt.Sprintf("%s → %s", formatBillingDate(u.BillingPeriod.Start), formatBillingDate(u.BillingPeriod.End))
+		if remaining := daysRemaining(u.BillingPeriod.End); remaining >= 0 {
+			line += "  " + output.DimStyle.Render(fmt.Sprintf("(%d days remaining)", remaining))
+		}
+		period = append(period, line)
 	}
-	fmt.Println()
-	fmt.Printf("  Pricing: %s\n", u.PricingStyle)
-	fmt.Println()
+	if u.PricingStyle != "" {
+		period = append(period, "Pricing: "+u.PricingStyle)
+	}
+	sections = append(sections, renderSection("Billing Period", period))
 
-	// APM
 	if u.APM != nil {
-		fmt.Println(output.BoldStyle.Render("APM Transactions"))
-		fmt.Printf("  Total: %s\n", formatTransactions(float64(u.APM.TotalTransactions)))
+		lines := []string{"Total: " + formatTransactions(float64(u.APM.TotalTransactions))}
 		if u.APM.Limit != nil && *u.APM.Limit > 0 {
-			fmt.Printf("  Limit: %s\n", formatTransactions(float64(*u.APM.Limit)))
-			fmt.Printf("  %s\n", renderUsageBar(u.APM.TotalTransactions, *u.APM.Limit))
+			lines = append(lines,
+				"Limit: "+formatTransactions(float64(*u.APM.Limit)),
+				renderUsageBar(u.APM.TotalTransactions, *u.APM.Limit),
+			)
 		}
-		fmt.Println()
+		sections = append(sections, renderSection("APM Transactions", lines))
 	}
 
-	// Nodes
 	if u.Nodes != nil {
-		fmt.Println(output.BoldStyle.Render("Nodes"))
-		fmt.Printf("  Active: %d\n", u.Nodes.ActiveCount)
-		fmt.Println()
+		sections = append(sections, renderSection("Nodes", []string{
+			fmt.Sprintf("Active: %d", u.Nodes.ActiveCount),
+		}))
 	}
 
-	// Errors
 	if u.Errors != nil {
-		fmt.Println(output.BoldStyle.Render("Errors"))
-		fmt.Printf("  Count: %s\n", formatTransactions(float64(u.Errors.Count)))
+		lines := []string{"Count: " + formatTransactions(float64(u.Errors.Count))}
 		if u.Errors.Limit > 0 {
-			fmt.Printf("  Limit: %s\n", formatTransactions(float64(u.Errors.Limit)))
-			fmt.Printf("  %s\n", renderUsageBar(u.Errors.Count, u.Errors.Limit))
+			lines = append(lines,
+				"Limit: "+formatTransactions(float64(u.Errors.Limit)),
+				renderUsageBar(u.Errors.Count, u.Errors.Limit),
+			)
 		}
-		fmt.Println()
+		sections = append(sections, renderSection("Errors", lines))
 	}
 
-	// Logs
 	if u.Logs != nil {
-		fmt.Println(output.BoldStyle.Render("Logs"))
-		fmt.Printf("  Used: %s\n", output.FormatBytes(u.Logs.BytesUsed))
+		lines := []string{"Used: " + output.FormatBytes(u.Logs.BytesUsed)}
 		if u.Logs.LimitBytes != nil && *u.Logs.LimitBytes > 0 {
-			fmt.Printf("  Limit: %s\n", output.FormatBytes(*u.Logs.LimitBytes))
-			fmt.Printf("  %s\n", renderUsageBar(u.Logs.BytesUsed, *u.Logs.LimitBytes))
+			lines = append(lines,
+				"Limit: "+output.FormatBytes(*u.Logs.LimitBytes),
+				renderUsageBar(u.Logs.BytesUsed, *u.Logs.LimitBytes),
+			)
 		}
-		fmt.Println()
+		sections = append(sections, renderSection("Logs", lines))
 	}
+
+	return strings.Join(sections, "\n") + "\n"
 }
 
-// renderUsageBar renders an ASCII progress bar like [████████░░░░░░░░░░░░] 42%
+// renderSection renders a bold title followed by indented lines.
+func renderSection(title string, lines []string) string {
+	var sb strings.Builder
+	sb.WriteString(output.BoldStyle.Render(title))
+	sb.WriteString("\n")
+	for _, l := range lines {
+		sb.WriteString("  ")
+		sb.WriteString(l)
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+// renderUsageBar renders an ASCII progress bar like [████████░░░░░░░░░░░░] 42.0%
 func renderUsageBar(used, limit int64) string {
 	const barWidth = 20
 	pct := float64(used) / float64(limit) * 100
 	filled := int(math.Round(float64(barWidth) * float64(used) / float64(limit)))
 	if filled > barWidth {
 		filled = barWidth
+	}
+	if filled < 0 {
+		filled = 0
 	}
 
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
@@ -114,26 +146,39 @@ func renderUsageBar(used, limit int64) string {
 	return fmt.Sprintf("[%s] %.1f%%", bar, pct)
 }
 
-// formatBillingDate converts an ISO 8601 date string to "Mar 01, 2026" format.
-func formatBillingDate(iso string) string {
-	for _, layout := range []string{time.RFC3339, "2006-01-02"} {
-		if t, err := time.Parse(layout, iso); err == nil {
-			return t.Format("Jan 02, 2006")
+// billingDateLayouts are the formats the API may use for billing period dates.
+var billingDateLayouts = []string{time.RFC3339, "2006-01-02"}
+
+// parseBillingTime parses an ISO 8601 date or datetime.
+func parseBillingTime(s string) (time.Time, error) {
+	for _, layout := range billingDateLayouts {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
 		}
 	}
-	return iso
+	return time.Time{}, fmt.Errorf("cannot parse %q as date", s)
 }
 
-// daysRemaining calculates days until the given ISO 8601 date. Returns -1 if unparseable.
-func daysRemaining(endISO string) int {
-	for _, layout := range []string{time.RFC3339, "2006-01-02"} {
-		if t, err := time.Parse(layout, endISO); err == nil {
-			days := int(time.Until(t).Hours() / 24)
-			if days < 0 {
-				return 0
-			}
-			return days
-		}
+// formatBillingDate converts an ISO 8601 date string to "Mar 01, 2026" format.
+// Unparseable input is returned unchanged.
+func formatBillingDate(iso string) string {
+	t, err := parseBillingTime(iso)
+	if err != nil {
+		return iso
 	}
-	return -1
+	return t.Format("Jan 02, 2006")
+}
+
+// daysRemaining calculates whole days until the given ISO 8601 date. Returns 0
+// for dates in the past and -1 if the input is unparseable.
+func daysRemaining(endISO string) int {
+	t, err := parseBillingTime(endISO)
+	if err != nil {
+		return -1
+	}
+	days := int(time.Until(t).Hours() / 24)
+	if days < 0 {
+		return 0
+	}
+	return days
 }

@@ -1,6 +1,6 @@
 # Scout APM CLI
 
-A command-line interface for [Scout Monitoring](https://scoutapm.com). Explore metrics, endpoints, traces, errors, and insights from the terminal.
+A command-line interface for [Scout Monitoring](https://scoutapm.com). Explore metrics, endpoints, traces, errors, insights, and billing usage from the terminal.
 
 Built in Go with [Cobra](https://github.com/spf13/cobra), [Lipgloss](https://github.com/charmbracelet/lipgloss), [BubbleTea](https://github.com/charmbracelet/bubbletea), and [asciigraph](https://github.com/guptarohit/asciigraph).
 
@@ -99,7 +99,18 @@ scout usage --by-day --from 30d                # Daily totals
 scout usage --by-day --by-app --from 30d       # Daily breakdown per app with top endpoints
 scout usage --by-day --app 6 --from 30d        # Daily breakdown for one app with top endpoint
 scout usage --from 14d --json                  # JSON output
+scout usage --billing-period                   # Current billing period, with the server-side billed total
+scout usage --by-day --by-app --billing-period # Daily per-app breakdown over the billing period
 ```
+
+### Billing
+
+```bash
+scout billing          # Current billing period: APM transactions, nodes, errors, logs
+scout billing --json   # Raw JSON from the /usage API endpoint
+```
+
+Shows the exact usage Scout bills against for the current billing period, including plan limits where they apply. `scout usage` estimates web transactions from throughput metrics; `scout billing` reports the billed figures, which also include background jobs.
 
 ### Insights
 
