@@ -184,11 +184,11 @@ func TestMetricPointJSON(t *testing.T) {
 }
 
 func TestGetOrgUsage(t *testing.T) {
-	// Exact payload observed from the live /api/v0/usage endpoint.
+	// Full payload shape of /api/v0/usage with every optional section present (synthetic values).
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/v0/usage", r.URL.Path)
 		assert.Equal(t, "test-key", r.Header.Get("X-SCOUT-API"))
-		_, _ = w.Write([]byte(`{"header":{"status":{"code":200,"message":"OK"},"apiVersion":"0.1"},"results":{"billing_period":{"start":"2026-09-06T00:00:00+00:00","end":"2026-10-05T00:00:00+00:00"},"pricing_style":"per node","apm":{"total_transactions":329476789},"nodes":{"active_count":15},"errors":{"count":1156,"limit":1000000000},"logs":{"bytes_used":189223223871,"limit_bytes":10736344498176}}}`))
+		_, _ = w.Write([]byte(`{"header":{"status":{"code":200,"message":"OK"},"apiVersion":"0.1"},"results":{"billing_period":{"start":"2026-03-01T00:00:00+00:00","end":"2026-04-01T00:00:00+00:00"},"pricing_style":"per node","apm":{"total_transactions":12345678},"nodes":{"active_count":4},"errors":{"count":42,"limit":1000000},"logs":{"bytes_used":5000000000,"limit_bytes":2000000000000}}}`))
 	}))
 	defer server.Close()
 
@@ -196,25 +196,25 @@ func TestGetOrgUsage(t *testing.T) {
 	usage, err := client.GetOrgUsage()
 	require.NoError(t, err)
 
-	assert.Equal(t, "2026-09-06T00:00:00+00:00", usage.BillingPeriod.Start)
-	assert.Equal(t, "2026-10-05T00:00:00+00:00", usage.BillingPeriod.End)
+	assert.Equal(t, "2026-03-01T00:00:00+00:00", usage.BillingPeriod.Start)
+	assert.Equal(t, "2026-04-01T00:00:00+00:00", usage.BillingPeriod.End)
 	assert.Equal(t, "per node", usage.PricingStyle)
 
 	require.NotNil(t, usage.APM)
-	assert.Equal(t, int64(329476789), usage.APM.TotalTransactions)
+	assert.Equal(t, int64(12345678), usage.APM.TotalTransactions)
 	assert.Nil(t, usage.APM.Limit, "per-node plans have no transaction limit")
 
 	require.NotNil(t, usage.Nodes)
-	assert.Equal(t, 15, usage.Nodes.ActiveCount)
+	assert.Equal(t, 4, usage.Nodes.ActiveCount)
 
 	require.NotNil(t, usage.Errors)
-	assert.Equal(t, int64(1156), usage.Errors.Count)
-	assert.Equal(t, int64(1000000000), usage.Errors.Limit)
+	assert.Equal(t, int64(42), usage.Errors.Count)
+	assert.Equal(t, int64(1000000), usage.Errors.Limit)
 
 	require.NotNil(t, usage.Logs)
-	assert.Equal(t, int64(189223223871), usage.Logs.BytesUsed)
+	assert.Equal(t, int64(5000000000), usage.Logs.BytesUsed)
 	require.NotNil(t, usage.Logs.LimitBytes)
-	assert.Equal(t, int64(10736344498176), *usage.Logs.LimitBytes)
+	assert.Equal(t, int64(2000000000000), *usage.Logs.LimitBytes)
 }
 
 func TestGetOrgUsageMinimal(t *testing.T) {
