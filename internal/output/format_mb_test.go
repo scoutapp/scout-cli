@@ -32,11 +32,11 @@ func TestFormatMB(t *testing.T) {
 func TestRenderSpanTreeMemoryFooter(t *testing.T) {
 	trace := api.TraceDetail{
 		ID:                1,
-		MetricName:        "Controller/api/metrics/show",
+		MetricName:        "Controller/users/index",
 		DurationInSeconds: 0.5,
 		MemDelta:          2.9296875,
 		Spans: []api.TraceSpan{
-			{ID: "a", Operation: "Controller/api/metrics/show", DurationMs: 500},
+			{ID: "a", Operation: "Controller/users/index", DurationMs: 500},
 		},
 	}
 	out := RenderSpanTree(trace)
