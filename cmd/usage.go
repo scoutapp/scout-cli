@@ -101,7 +101,7 @@ func runUsage(cmd *cobra.Command, args []string) {
 
 	chunks := splitTimeframe(from, to)
 
-	results := output.RunWithProgress("Fetching usage data", !jsonOutput && !toonOutput, func(update func(float64)) []appUsage {
+	results := output.RunWithProgress("Fetching usage data", !jsonOutput, func(update func(float64)) []appUsage {
 		return fetchAllApps(apps, func(a api.App) appUsage {
 			return appUsage{
 				ID:           a.ID,
@@ -192,7 +192,7 @@ func runUsageByDayAllApps(client *api.Client, tf usageTimeframe) {
 
 	chunks := splitTimeframe(from, to)
 
-	allPoints := output.RunWithProgress("Fetching daily usage data", !jsonOutput && !toonOutput, func(update func(float64)) []api.MetricPoint {
+	allPoints := output.RunWithProgress("Fetching daily usage data", !jsonOutput, func(update func(float64)) []api.MetricPoint {
 		return fetchAllAppPoints(client, apps, chunks, func(done, total int) {
 			update(float64(done) / float64(total))
 		})
@@ -235,7 +235,7 @@ func runUsageByDayByApp(client *api.Client, tf usageTimeframe) {
 	}
 
 	chunks := splitTimeframe(from, to)
-	showProgress := !jsonOutput && !toonOutput
+	showProgress := !jsonOutput
 
 	type appPointsResult struct {
 		app    api.App
@@ -415,7 +415,7 @@ func runUsageByDayByApp(client *api.Client, tf usageTimeframe) {
 func runUsageByDaySingleApp(client *api.Client, id int, tf usageTimeframe) {
 	from, to := tf.from, tf.to
 	chunks := splitTimeframe(from, to)
-	showProgress := !jsonOutput && !toonOutput
+	showProgress := !jsonOutput
 
 	days := output.RunWithProgress("Fetching usage data", showProgress, func(update func(float64)) []dailyUsage {
 		points := fetchAppPoints(client, id, chunks)
