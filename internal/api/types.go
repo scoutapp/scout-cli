@@ -86,7 +86,7 @@ type TraceEntry struct {
 	ID            int                    `json:"id"`
 	Time          string                 `json:"time"`
 	TotalCallTime float64                `json:"total_call_time"`
-	MemDelta      int64                  `json:"mem_delta"`
+	MemDelta      float64                `json:"mem_delta"` // memory increase in MB
 	MetricName    string                 `json:"metric_name"`
 	URI           string                 `json:"uri"`
 	Context       map[string]interface{} `json:"context"`
@@ -115,7 +115,7 @@ type TraceDetail struct {
 	ID                int         `json:"id"`
 	Time              string      `json:"time"`
 	TotalCallTime     float64     `json:"total_call_time"`
-	MemDelta          int64       `json:"mem_delta"`
+	MemDelta          float64     `json:"mem_delta"` // memory increase in MB
 	MetricName        string      `json:"metric_name"`
 	URI               string      `json:"uri"`
 	TransactionID     string      `json:"transaction_id"`

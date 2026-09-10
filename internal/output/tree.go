@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -13,7 +14,8 @@ func RenderSpanTree(trace api.TraceDetail) string {
 
 	totalMs := trace.DurationInSeconds * 1000
 	if totalMs == 0 {
-		totalMs = trace.TotalCallTime * 1000
+		// total_call_time is reported in milliseconds by the API.
+		totalMs = trace.TotalCallTime
 	}
 
 	// Header
@@ -41,7 +43,7 @@ func RenderSpanTree(trace api.TraceDetail) string {
 	var meta []string
 	if trace.MemDelta != 0 {
 		meta = append(meta, fmt.Sprintf("Memory: %s%s",
-			sign(trace.MemDelta), FormatBytes(abs(trace.MemDelta))))
+			sign(trace.MemDelta), FormatMB(math.Abs(trace.MemDelta))))
 	}
 	if trace.AllocationsCount > 0 {
 		meta = append(meta, fmt.Sprintf("Allocations: %s", FormatNumber(trace.AllocationsCount)))
@@ -118,16 +120,9 @@ func renderSpan(sb *strings.Builder, span api.TraceSpan, totalMs float64, prefix
 	}
 }
 
-func sign(n int64) string {
+func sign(n float64) string {
 	if n >= 0 {
 		return "+"
 	}
 	return "-"
-}
-
-func abs(n int64) int64 {
-	if n < 0 {
-		return -n
-	}
-	return n
 }
