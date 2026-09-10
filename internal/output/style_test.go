@@ -41,3 +41,8 @@ func TestFormatBytes(t *testing.T) {
 	assert.Equal(t, "11.8 MB", FormatBytes(11800000))
 	assert.Equal(t, "1.5 GB", FormatBytes(1500000000))
 }
+
+func TestFormatBytesTerabytes(t *testing.T) {
+	assert.Equal(t, "5.0 GB", FormatBytes(5000000000))
+	assert.Equal(t, "2.0 TB", FormatBytes(2000000000000))
+}

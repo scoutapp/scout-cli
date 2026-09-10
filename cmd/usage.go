@@ -14,21 +14,29 @@ import (
 )
 
 var (
-	showAllApps bool
-	byDay       bool
-	byApp       bool
+	showAllApps   bool
+	byDay         bool
+	byApp         bool
+	billingPeriod bool
 )
 
 var usageCmd = &cobra.Command{
 	Use:   "usage",
-	Short: "Show transaction usage across all apps",
-	Run:   runUsage,
+	Short: "Show web transaction usage across all apps",
+	Long: `Show web transaction usage across all apps for a timeframe.
+
+Per-app figures are calculated from the throughput metric, which counts web
+requests only; background job transactions are excluded. The billed total,
+which includes background jobs, is shown by 'scout billing' and, alongside
+the per-app breakdown, by 'scout usage --billing-period'.`,
+	Run: runUsage,
 }
 
 func init() {
 	usageCmd.Flags().BoolVar(&showAllApps, "all", false, "Include apps with zero usage")
 	usageCmd.Flags().BoolVar(&byDay, "by-day", false, "Show daily transaction breakdown")
 	usageCmd.Flags().BoolVar(&byApp, "by-app", false, "Break down by app (use with --by-day)")
+	usageCmd.Flags().BoolVar(&billingPeriod, "billing-period", false, "Use current billing period as timeframe")
 	rootCmd.AddCommand(usageCmd)
 }
 
@@ -79,10 +87,11 @@ func runUsage(cmd *cobra.Command, args []string) {
 		exitError(err.Error())
 	}
 
-	from, to, err := resolveTimeframe()
+	tf, err := resolveUsageTimeframe(client)
 	if err != nil {
 		exitError(err.Error())
 	}
+	from, to := tf.from, tf.to
 
 	apps, err := client.ListApps()
 	if err != nil {
@@ -122,7 +131,7 @@ func runUsage(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	printTimeframe(from, to)
+	printUsageHeader(tf)
 
 	var grandTotal float64
 	for _, r := range results {
@@ -132,7 +141,7 @@ func runUsage(cmd *cobra.Command, args []string) {
 	total := len(results)
 	limit, _ := applyLimit(total)
 
-	headers := []string{"Name", "Transactions", "% of Total"}
+	headers := []string{"Name", "Web Transactions", "% of Web"}
 	rows := make([][]string, limit)
 	for i := 0; i < limit; i++ {
 		r := results[i]
@@ -150,6 +159,7 @@ func runUsage(cmd *cobra.Command, args []string) {
 	fmt.Println(output.RenderTable(headers, rows))
 	printTruncated(limit, total)
 	printTotalFooter(grandTotal)
+	printServerTotal(tf)
 }
 
 func runUsageByDay(cmd *cobra.Command, args []string) {
@@ -158,21 +168,22 @@ func runUsageByDay(cmd *cobra.Command, args []string) {
 		exitError(err.Error())
 	}
 
-	from, to, err := resolveTimeframe()
+	tf, err := resolveUsageTimeframe(client)
 	if err != nil {
 		exitError(err.Error())
 	}
 
 	if appID > 0 {
-		runUsageByDaySingleApp(client, appID, from, to)
+		runUsageByDaySingleApp(client, appID, tf)
 	} else if byApp {
-		runUsageByDayByApp(client, from, to)
+		runUsageByDayByApp(client, tf)
 	} else {
-		runUsageByDayAllApps(client, from, to)
+		runUsageByDayAllApps(client, tf)
 	}
 }
 
-func runUsageByDayAllApps(client *api.Client, from, to string) {
+func runUsageByDayAllApps(client *api.Client, tf usageTimeframe) {
+	from, to := tf.from, tf.to
 	apps, err := client.ListApps()
 	if err != nil {
 		handleAPIError(err)
@@ -192,12 +203,12 @@ func runUsageByDayAllApps(client *api.Client, from, to string) {
 		return
 	}
 
-	printTimeframe(from, to)
+	printUsageHeader(tf)
 
 	total := len(days)
 	limit, _ := applyLimit(total)
 
-	headers := []string{"Day", "Transactions"}
+	headers := []string{"Day", "Web Transactions"}
 	rows := make([][]string, limit)
 	var grandTotal int64
 	for i := 0; i < limit; i++ {
@@ -212,9 +223,11 @@ func runUsageByDayAllApps(client *api.Client, from, to string) {
 	fmt.Println(output.RenderTable(headers, rows))
 	printTruncated(limit, total)
 	printTotalFooter(float64(grandTotal))
+	printServerTotal(tf)
 }
 
-func runUsageByDayByApp(client *api.Client, from, to string) {
+func runUsageByDayByApp(client *api.Client, tf usageTimeframe) {
+	from, to := tf.from, tf.to
 	apps, err := client.ListApps()
 	if err != nil {
 		handleAPIError(err)
@@ -359,14 +372,14 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 		return
 	}
 
-	printTimeframe(from, to)
+	printUsageHeader(tf)
 
 	var grandTotal int64
 	for _, report := range reports {
 		grandTotal += report.Total
 	}
 
-	headers := []string{"Day", "App", "Transactions", "% of Day", "% of Total", "Top Endpoint"}
+	headers := []string{"Day", "App", "Web Transactions", "% of Day", "% of Web", "Top Endpoint"}
 	var rows [][]string
 	for i, report := range reports {
 		if i > 0 {
@@ -394,11 +407,13 @@ func runUsageByDayByApp(client *api.Client, from, to string) {
 	fmt.Println(output.RenderTable(headers, rows))
 
 	if grandTotal > 0 {
-		fmt.Printf("Total: %s transactions\n", formatTransactions(float64(grandTotal)))
+		fmt.Printf("Total: %s web transactions\n", formatTransactions(float64(grandTotal)))
 	}
+	printServerTotal(tf)
 }
 
-func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
+func runUsageByDaySingleApp(client *api.Client, id int, tf usageTimeframe) {
+	from, to := tf.from, tf.to
 	chunks := splitTimeframe(from, to)
 	showProgress := !jsonOutput && !toonOutput
 
@@ -441,12 +456,12 @@ func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
 		return
 	}
 
-	printTimeframe(from, to)
+	printUsageHeader(tf)
 
 	total := len(days)
 	limit, _ := applyLimit(total)
 
-	headers := []string{"Day", "Transactions", "Top Endpoint"}
+	headers := []string{"Day", "Web Transactions", "Top Endpoint"}
 	rows := make([][]string, limit)
 	var grandTotal int64
 	for i := 0; i < limit; i++ {
@@ -462,6 +477,95 @@ func runUsageByDaySingleApp(client *api.Client, id int, from, to string) {
 	fmt.Println(output.RenderTable(headers, rows))
 	printTruncated(limit, total)
 	printTotalFooter(float64(grandTotal))
+	printServerTotal(tf)
+}
+
+// usageTimeframe is the resolved window for a usage query. billing is set
+// only when --billing-period was used, and carries the org usage payload so
+// the billing period can be shown alongside the client-side calculation
+// without fetching /usage twice.
+type usageTimeframe struct {
+	from, to string
+	billing  *api.OrgUsage
+}
+
+// resolveUsageTimeframe returns the timeframe to use for usage queries.
+// With --billing-period it fetches the current billing period from the org
+// usage endpoint; otherwise it falls back to the standard --from/--to flags.
+func resolveUsageTimeframe(client *api.Client) (usageTimeframe, error) {
+	if !billingPeriod {
+		from, to, err := resolveTimeframe()
+		return usageTimeframe{from: from, to: to}, err
+	}
+
+	if fromFlag != "" || toFlag != "" {
+		return usageTimeframe{}, fmt.Errorf("--billing-period cannot be used with --from or --to")
+	}
+
+	usage, err := client.GetOrgUsage()
+	if err != nil {
+		return usageTimeframe{}, fmt.Errorf("failed to fetch billing period: %w", err)
+	}
+	if usage.BillingPeriod.Start == "" || usage.BillingPeriod.End == "" {
+		return usageTimeframe{}, fmt.Errorf("billing period not available for this organization")
+	}
+
+	start, err := parseBillingTime(usage.BillingPeriod.Start)
+	if err != nil {
+		return usageTimeframe{}, fmt.Errorf("invalid billing period start: %w", err)
+	}
+	end, err := parseBillingTime(usage.BillingPeriod.End)
+	if err != nil {
+		return usageTimeframe{}, fmt.Errorf("invalid billing period end: %w", err)
+	}
+	// The current period usually ends in the future; there is no data past
+	// now, so clamp the query window while still reporting the full period.
+	if now := time.Now().UTC(); end.After(now) {
+		end = now
+	}
+
+	return usageTimeframe{
+		from:    start.UTC().Format(time.RFC3339),
+		to:      end.UTC().Format(time.RFC3339),
+		billing: usage,
+	}, nil
+}
+
+// printUsageHeader prints the billing period when the query is scoped to it,
+// otherwise the plain timeframe header.
+func printUsageHeader(tf usageTimeframe) {
+	if tf.billing == nil {
+		printTimeframe(tf.from, tf.to)
+		return
+	}
+	fmt.Printf("%s\n\n", output.DimStyle.Render(fmt.Sprintf("Billing period: %s → %s",
+		formatBillingDate(tf.billing.BillingPeriod.Start),
+		formatBillingDate(tf.billing.BillingPeriod.End))))
+}
+
+// printServerTotal prints the server-reported transaction total for the
+// billing period so the client-side calculation can be compared against the
+// exact billed figure. No-op unless --billing-period was used.
+//
+// The per-app figures come from the throughput metric, which counts web
+// requests only, whereas the billed total also includes background jobs, so
+// the two are expected to differ for apps that run jobs.
+func printServerTotal(tf usageTimeframe) {
+	if tf.billing == nil || tf.billing.APM == nil {
+		return
+	}
+	fmt.Println(serverTotalLine(tf.billing.APM))
+	fmt.Println(output.DimStyle.Render("Per-app totals above count web transactions only; the billed total also includes background jobs."))
+}
+
+// serverTotalLine formats the billed transaction total, with the plan limit
+// when the API reports one.
+func serverTotalLine(apm *api.APMUsage) string {
+	line := fmt.Sprintf("Billing period total (server, web + jobs): %s transactions", formatTransactions(float64(apm.TotalTransactions)))
+	if apm.Limit != nil && *apm.Limit > 0 {
+		line += fmt.Sprintf(" (limit: %s)", formatTransactions(float64(*apm.Limit)))
+	}
+	return line
 }
 
 // fetchAllApps runs fn for each app in parallel and collects the results.
@@ -628,7 +732,7 @@ func printTimeframe(from, to string) {
 // printTotalFooter prints the grand total line if non-zero.
 func printTotalFooter(grandTotal float64) {
 	if grandTotal > 0 {
-		fmt.Printf("\nTotal: %s transactions\n", formatTransactions(grandTotal))
+		fmt.Printf("\nTotal: %s web transactions\n", formatTransactions(grandTotal))
 	}
 }
 
