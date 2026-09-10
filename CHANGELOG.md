@@ -1,10 +1,11 @@
 # Changelog
 
-## [1.0.0] - 2026-09-10
+## [0.5.0] - 2026-09-10
 
 This release rounds out command coverage across the whole Scout API surface
-(background jobs, billing) and fixes the last known crash in `scout traces`,
-marking the CLI's command and flag surface as stable going forward.
+(background jobs, billing) and fixes a crash in `scout traces`. A broader
+pre-1.0 audit turned up a further round of fixes, tracked in #26–#29, which
+will land in a 1.0.0 release once addressed.
 
 ### Added
 
