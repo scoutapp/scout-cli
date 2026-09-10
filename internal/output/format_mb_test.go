@@ -36,7 +36,7 @@ func TestRenderSpanTreeMemoryFooter(t *testing.T) {
 		DurationInSeconds: 0.5,
 		MemDelta:          2.9296875,
 		Spans: []api.TraceSpan{
-			{ID: "a", Operation: "Controller/users/index", DurationMs: 500},
+			{ID: "a", Operation: "Controller/users/index", DurationSeconds: 0.5},
 		},
 	}
 	out := RenderSpanTree(trace)
