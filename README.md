@@ -1,6 +1,6 @@
 # Scout APM CLI
 
-A command-line interface for [Scout Monitoring](https://scoutapm.com). Explore metrics, endpoints, traces, errors, insights, and billing usage from the terminal.
+A command-line interface for [Scout Monitoring](https://scoutapm.com). Explore metrics, endpoints, background jobs, traces, errors, insights, and billing usage from the terminal.
 
 Built in Go with [Cobra](https://github.com/spf13/cobra), [Lipgloss](https://github.com/charmbracelet/lipgloss), [BubbleTea](https://github.com/charmbracelet/bubbletea), and [asciigraph](https://github.com/guptarohit/asciigraph).
 
@@ -64,10 +64,24 @@ scout endpoints list --app 6
 scout endpoints metrics --endpoint YXBpL21ldHJpY3Mvc2hvdw== --type response_time --app 6
 ```
 
+### Background Jobs
+
+```bash
+scout jobs list --app 6
+scout jobs metrics --job ZGVmYXVsdC9NeVdvcmtlcg== --type execution_time --app 6
+scout jobs metrics --job default/MyWorker --type throughput --app 6   # queue/JobName also works
+scout traces list --job ZGVmYXVsdC9NeVdvcmtlcg== --app 6
+```
+
+Valid job metric types: `throughput`, `execution_time`, `latency`, `errors`, `allocations`
+
+Job IDs are in the `scout jobs list --json` output (`job_id`), or pass the job's `queue/JobName` full name and the CLI encodes it for you. Job traces can be listed but not yet shown in detail (`scout traces show` supports endpoint traces only).
+
 ### Traces
 
 ```bash
 scout traces list --endpoint YXBpL21ldHJpY3Mvc2hvdw== --app 6
+scout traces list --job ZGVmYXVsdC9NeVdvcmtlcg== --app 6
 scout traces show 12345 --app 6
 ```
 

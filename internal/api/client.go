@@ -158,6 +158,46 @@ func (c *Client) GetEndpointMetrics(appID int, endpoint, metricType, from, to st
 	return &r, nil
 }
 
+func (c *Client) ListJobs(appID int, from, to string) ([]JobEntry, error) {
+	path := fmt.Sprintf("/api/v0/apps/%d/jobs", appID)
+	results, err := c.get(path, map[string]string{"from": from, "to": to})
+	if err != nil {
+		return nil, err
+	}
+	// Jobs response is a bare array
+	var jobs []JobEntry
+	if err := json.Unmarshal(results, &jobs); err != nil {
+		return nil, err
+	}
+	return jobs, nil
+}
+
+func (c *Client) GetJobMetrics(appID int, jobID, metricType, from, to string) (*JobMetricsResult, error) {
+	path := fmt.Sprintf("/api/v0/apps/%d/jobs/%s/metrics/%s", appID, jobID, metricType)
+	results, err := c.get(path, map[string]string{"from": from, "to": to})
+	if err != nil {
+		return nil, err
+	}
+	var r JobMetricsResult
+	if err := json.Unmarshal(results, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+func (c *Client) ListJobTraces(appID int, jobID, from, to string) ([]JobTraceEntry, error) {
+	path := fmt.Sprintf("/api/v0/apps/%d/jobs/%s/traces", appID, jobID)
+	results, err := c.get(path, map[string]string{"from": from, "to": to})
+	if err != nil {
+		return nil, err
+	}
+	var r JobTracesResult
+	if err := json.Unmarshal(results, &r); err != nil {
+		return nil, err
+	}
+	return r.Traces, nil
+}
+
 func (c *Client) ListTraces(appID int, endpointID, from, to string) ([]TraceEntry, error) {
 	path := fmt.Sprintf("/api/v0/apps/%d/endpoints/%s/traces", appID, endpointID)
 	results, err := c.get(path, map[string]string{"from": from, "to": to})

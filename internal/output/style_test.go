@@ -46,3 +46,24 @@ func TestFormatBytesTerabytes(t *testing.T) {
 	assert.Equal(t, "5.0 GB", FormatBytes(5000000000))
 	assert.Equal(t, "2.0 TB", FormatBytes(2000000000000))
 }
+
+func TestFormatPerMinute(t *testing.T) {
+	tests := []struct {
+		input    float64
+		expected string
+	}{
+		{1340, "1.3k/min"},
+		{1000, "1.0k/min"},
+		{92.2, "92/min"},
+		{10, "10/min"},
+		{2.14, "2.1/min"},
+		{1, "1.0/min"},
+		{0.46, "0.46/min"},
+		{0, "0.00/min"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			assert.Equal(t, tt.expected, FormatPerMinute(tt.input))
+		})
+	}
+}
