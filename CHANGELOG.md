@@ -3,9 +3,7 @@
 ## [0.5.0] - 2026-09-10
 
 This release rounds out command coverage across the whole Scout API surface
-(background jobs, billing) and fixes a crash in `scout traces`. A broader
-pre-1.0 audit turned up a further round of fixes, tracked in #26–#29, which
-will land in a 1.0.0 release once addressed.
+(background jobs, billing) and fixes a crash in `scout traces`.
 
 ### Added
 
