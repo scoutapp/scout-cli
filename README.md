@@ -168,8 +168,7 @@ scout setup rails     # Show setup docs for a framework
 
 | Flag | Description |
 |------|-------------|
-| `--json` | Output raw JSON |
-| `--toon` | Output in [TOON](https://toonformat.dev/) format (auto-enabled when piped) |
+| `--json` | Output raw JSON (auto-enabled when piped) |
 | `--app <id>` | Application ID (or set `default_app_id` in config) |
 | `--from <time>` | Start time — relative (`1h`, `7d`, `30m`, `2w`) or ISO 8601 |
 | `--to <time>` | End time (default: now) |
@@ -178,16 +177,13 @@ scout setup rails     # Show setup docs for a framework
 
 ## LLM / Agent Usage
 
-When output is piped, Scout CLI automatically switches to [TOON](https://toonformat.dev/) format — a token-efficient structured format designed for LLM consumption. This means tools like Claude Code, scripts, and other agents get compact, parseable output by default.
+When output is piped, Scout CLI automatically switches to JSON. Tools like Claude Code, scripts, and other agents get structured, parseable output by default — no flags needed. Human-readable tables and charts are used only when writing to a terminal.
 
 ```bash
-# TOON output is automatic when piped
+# JSON output is automatic when piped
 scout apps list | llm "which app has the most endpoints?"
 
-# Force TOON in a terminal
-scout metrics get --type response_time --app 6 --toon
-
-# Use --json if you need raw JSON instead
+# Force JSON in a terminal
 scout metrics get --type response_time --app 6 --json
 ```
 

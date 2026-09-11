@@ -1,5 +1,11 @@
 # Changelog
 
+## Pending
+
+### Removed
+
+- `--toon` flag and the `toon-format/toon-go` dependency — `--json` is now the CLI's only structured output format, and piped output auto-enables `--json` instead of TOON (#28)
+
 ## [0.5.0] - 2026-09-10
 
 This release rounds out command coverage across the whole Scout API surface
