@@ -70,14 +70,16 @@ func renderSpan(sb *strings.Builder, span api.TraceSpan, totalMs float64, prefix
 		childPrefix = "     "
 	}
 
+	durationMs := span.DurationSeconds * 1000
+
 	// Duration bar
 	barWidth := 20
-	ratio := span.DurationMs / totalMs
+	ratio := durationMs / totalMs
 	if ratio > 1 {
 		ratio = 1
 	}
 	filled := int(ratio * float64(barWidth))
-	if filled < 1 && span.DurationMs > 0 {
+	if filled < 1 && durationMs > 0 {
 		filled = 1
 	}
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
@@ -106,7 +108,7 @@ func renderSpan(sb *strings.Builder, span api.TraceSpan, totalMs float64, prefix
 		prefix,
 		connector,
 		opFormatted,
-		FormatMs(span.DurationMs),
+		FormatMs(durationMs),
 		barColor.Render(bar),
 		warning,
 	)

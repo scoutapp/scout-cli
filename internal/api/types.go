@@ -232,16 +232,20 @@ type TracesResult struct {
 }
 
 // TraceSpan represents a span in a trace tree.
+//
+// The API populates the duration_ms and exclusive_duration_ms keys with
+// values in seconds, not milliseconds. The JSON tags keep the wire names so
+// --json stays a faithful pass-through; the Go fields carry the real unit.
 type TraceSpan struct {
-	ID                  string      `json:"id"`
-	ParentID            *string     `json:"parent_id"`
-	Operation           string      `json:"operation"`
-	Type                string      `json:"type"`
-	Description         *string     `json:"description"`
-	DurationMs          float64     `json:"duration_ms"`
-	ExclusiveDurationMs float64     `json:"exclusive_duration_ms"`
-	Allocations         int64       `json:"allocations"`
-	Children            []TraceSpan `json:"children,omitempty"`
+	ID                       string      `json:"id"`
+	ParentID                 *string     `json:"parent_id"`
+	Operation                string      `json:"operation"`
+	Type                     string      `json:"type"`
+	Description              *string     `json:"description"`
+	DurationSeconds          float64     `json:"duration_ms"`
+	ExclusiveDurationSeconds float64     `json:"exclusive_duration_ms"`
+	Allocations              int64       `json:"allocations"`
+	Children                 []TraceSpan `json:"children,omitempty"`
 }
 
 // TraceDetail contains full trace information including spans.
