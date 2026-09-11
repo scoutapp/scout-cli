@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -163,9 +165,56 @@ func TestNonJSONErrorResponse(t *testing.T) {
 	apiErr, ok := err.(*APIError)
 	require.True(t, ok, "expected *APIError, got %T: %v", err, err)
 	assert.Equal(t, 404, apiErr.StatusCode)
-	assert.Contains(t, apiErr.Message, "Not Found")
+	assert.Equal(t, "Not Found", apiErr.Message, "status text and an identical body should not be repeated")
 	// The cryptic JSON parse error must not leak through.
 	assert.NotContains(t, err.Error(), "invalid character")
+}
+
+func TestNonJSONErrorResponseKeepsDistinctBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("upstream timeout"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+	_, err := client.ListApps()
+	require.Error(t, err)
+
+	apiErr, ok := err.(*APIError)
+	require.True(t, ok, "expected *APIError, got %T: %v", err, err)
+	assert.Equal(t, "Internal Server Error: upstream timeout", apiErr.Message)
+}
+
+func TestStatusMessage(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusText string
+		snippet    string
+		want       string
+	}{
+		{name: "identical", statusText: "Not Found", snippet: "Not Found", want: "Not Found"},
+		{name: "different case", statusText: "Not Found", snippet: "not found", want: "Not Found"},
+		{name: "trailing period", statusText: "Not Found", snippet: "Not found.", want: "Not Found"},
+		{name: "distinct body", statusText: "Bad Gateway", snippet: "nginx", want: "Bad Gateway: nginx"},
+		{name: "empty body", statusText: "Not Found", snippet: "(empty response body)", want: "Not Found: (empty response body)"},
+		{name: "unknown status", statusText: "", snippet: "boom", want: "boom"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, statusMessage(tt.statusText, tt.snippet))
+		})
+	}
+}
+
+func TestBodySnippetTruncatesByRune(t *testing.T) {
+	body := strings.Repeat("é", 300)
+
+	got := bodySnippet([]byte(body))
+
+	assert.True(t, utf8.ValidString(got), "truncation split a multibyte character")
+	assert.Equal(t, 201, utf8.RuneCountInString(got), "200 runes plus the ellipsis")
 }
 
 func TestMetricPointJSON(t *testing.T) {

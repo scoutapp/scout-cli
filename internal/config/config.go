@@ -64,6 +64,9 @@ func Clear() error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
 	return os.WriteFile(path, []byte("{}"), 0600)
 }
 

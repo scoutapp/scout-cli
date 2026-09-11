@@ -43,16 +43,15 @@ func runAppsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	apps, total := limitSlice(apps)
+
 	if structuredOutput(apps) {
 		return
 	}
 
-	total := len(apps)
-	limit, _ := applyLimit(total)
-
 	headers := []string{"ID", "Name", "Last Reported"}
-	rows := make([][]string, limit)
-	for i := 0; i < limit; i++ {
+	rows := make([][]string, len(apps))
+	for i := range apps {
 		app := apps[i]
 		lastReported := ""
 		if app.LastReportedAt != "" {
@@ -66,7 +65,7 @@ func runAppsList(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
-	printTruncated(limit, total)
+	printTruncated(len(apps), total)
 }
 
 func runAppsShow(cmd *cobra.Command, args []string) {
@@ -84,6 +83,19 @@ func runAppsShow(cmd *cobra.Command, args []string) {
 	if err != nil {
 		handleAPIError(err)
 		return
+	}
+
+	// The single-app payload omits last_reported_at, which the list payload
+	// carries; fill it in so 'apps show' isn't thinner than 'apps list'.
+	if app.LastReportedAt == "" {
+		if apps, listErr := client.ListApps(); listErr == nil {
+			for _, a := range apps {
+				if a.ID == app.ID {
+					app.LastReportedAt = a.LastReportedAt
+					break
+				}
+			}
+		}
 	}
 
 	if structuredOutput(app) {

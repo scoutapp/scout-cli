@@ -7,6 +7,34 @@ import (
 	"time"
 )
 
+// maxRelativeDays bounds a relative --from/--to value. Anything further back
+// is a typo rather than a real query, and a large enough value overflows the
+// date arithmetic into a future timestamp.
+const maxRelativeDays = 5 * 365
+
+func isRelativeUnit(unit byte) bool {
+	switch unit {
+	case 'm', 'h', 'd', 'w':
+		return true
+	}
+	return false
+}
+
+// relativeDays converts a relative value to days. It uses float64 so an
+// absurdly large count can be compared against the bound without overflowing.
+func relativeDays(n int, unit byte) float64 {
+	switch unit {
+	case 'm':
+		return float64(n) / (60 * 24)
+	case 'h':
+		return float64(n) / 24
+	case 'w':
+		return float64(n) * 7
+	default:
+		return float64(n)
+	}
+}
+
 func Parse(input string) (time.Time, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
@@ -17,7 +45,13 @@ func Parse(input string) (time.Time, error) {
 	if len(input) >= 2 {
 		unit := input[len(input)-1]
 		numStr := input[:len(input)-1]
-		if n, err := strconv.Atoi(numStr); err == nil {
+		if n, err := strconv.Atoi(numStr); err == nil && isRelativeUnit(unit) {
+			if n < 0 {
+				return time.Time{}, fmt.Errorf("relative time %q is negative — use a positive value like 1h or 7d", input)
+			}
+			if relativeDays(n, unit) > maxRelativeDays {
+				return time.Time{}, fmt.Errorf("relative time %q is too far in the past (maximum %d days)", input, maxRelativeDays)
+			}
 			now := time.Now().UTC()
 			switch unit {
 			case 'm':
@@ -78,6 +112,11 @@ func ResolveTimeframe(fromStr, toStr string) (string, string, error) {
 		if err != nil {
 			return "", "", fmt.Errorf("invalid --from: %w", err)
 		}
+	}
+
+	if !to.After(from) {
+		return "", "", fmt.Errorf("invalid timeframe: --to (%s) must be after --from (%s)",
+			to.Format(time.RFC3339), from.Format(time.RFC3339))
 	}
 
 	return from.Format(time.RFC3339), to.Format(time.RFC3339), nil
