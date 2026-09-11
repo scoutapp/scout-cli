@@ -57,7 +57,15 @@ scout auth status
 scout auth logout
 ```
 
-Credentials are stored in `~/.config/scout-apm/config.json`. You can also set the `SCOUT_API_KEY` environment variable.
+Credentials are stored in a per-user config file whose location follows the platform convention:
+
+| Platform | Path |
+| --- | --- |
+| macOS | `~/Library/Application Support/scout-apm/config.json` |
+| Linux | `$XDG_CONFIG_HOME/scout-apm/config.json`, defaulting to `~/.config/scout-apm/config.json` |
+| Windows | `%AppData%\scout-apm\config.json` |
+
+`scout auth status` prints the path in use. You can also set the `SCOUT_API_KEY` environment variable, which takes precedence over the config file.
 
 ## Usage
 
@@ -102,16 +110,20 @@ Job IDs are in the `scout jobs list --json` output (`job_id`), or pass the job's
 ```bash
 scout traces list --endpoint YXBpL21ldHJpY3Mvc2hvdw== --app 6
 scout traces list --job ZGVmYXVsdC9NeVdvcmtlcg== --app 6
-scout traces show 12345 --app 6
+scout traces show <trace-id> --app 6
 ```
+
+Trace ids come from `scout traces list`.
 
 ### Errors
 
 ```bash
 scout errors list --app 6
-scout errors show 50560 --app 6
-scout errors occurrences 50560 --app 6
+scout errors show <error-group-id> --app 6
+scout errors occurrences <error-group-id> --app 6
 ```
+
+Error group ids come from `scout errors list`.
 
 ### Anomalies
 
@@ -168,8 +180,7 @@ scout setup rails     # Show setup docs for a framework
 
 | Flag | Description |
 |------|-------------|
-| `--json` | Output raw JSON |
-| `--toon` | Output in [TOON](https://toonformat.dev/) format (auto-enabled when piped) |
+| `--json` | Output raw JSON (auto-enabled when piped) |
 | `--app <id>` | Application ID (or set `default_app_id` in config) |
 | `--from <time>` | Start time — relative (`1h`, `7d`, `30m`, `2w`) or ISO 8601 |
 | `--to <time>` | End time (default: now) |
@@ -178,22 +189,19 @@ scout setup rails     # Show setup docs for a framework
 
 ## LLM / Agent Usage
 
-When output is piped, Scout CLI automatically switches to [TOON](https://toonformat.dev/) format — a token-efficient structured format designed for LLM consumption. This means tools like Claude Code, scripts, and other agents get compact, parseable output by default.
+When output is piped, Scout CLI automatically switches to JSON. Tools like Claude Code, scripts, and other agents get structured, parseable output by default — no flags needed. Human-readable tables and charts are used only when writing to a terminal.
 
 ```bash
-# TOON output is automatic when piped
+# JSON output is automatic when piped
 scout apps list | llm "which app has the most endpoints?"
 
-# Force TOON in a terminal
-scout metrics get --type response_time --app 6 --toon
-
-# Use --json if you need raw JSON instead
+# Force JSON in a terminal
 scout metrics get --type response_time --app 6 --json
 ```
 
 ## Configuration
 
-Config file: `~/.config/scout-apm/config.json`
+Config file location (see [Authentication](#authentication) for the full table): `~/Library/Application Support/scout-apm/config.json` on macOS, `~/.config/scout-apm/config.json` on Linux. Run `scout auth status` to print the path in use.
 
 ```json
 {

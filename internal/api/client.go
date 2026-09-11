@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 )
 
 type Client struct {
@@ -32,10 +33,24 @@ func bodySnippet(body []byte) string {
 		return "(empty response body)"
 	}
 	const max = 200
-	if len(s) > max {
-		return s[:max] + "…"
+	if utf8.RuneCountInString(s) > max {
+		return string([]rune(s)[:max]) + "…"
 	}
 	return s
+}
+
+// statusMessage combines an HTTP status text with a body snippet, dropping the
+// snippet when it only repeats the status (a plain-text "Not Found" body under
+// a 404 would otherwise read "Not Found: Not Found").
+func statusMessage(statusText, snippet string) string {
+	if statusText == "" {
+		return snippet
+	}
+	trimmed := strings.ToLower(strings.Trim(snippet, " .…"))
+	if trimmed != "" && strings.Contains(strings.ToLower(statusText), trimmed) {
+		return statusText
+	}
+	return fmt.Sprintf("%s: %s", statusText, snippet)
 }
 
 func (c *Client) get(path string, params map[string]string) (json.RawMessage, error) {
@@ -78,7 +93,7 @@ func (c *Client) get(path string, params map[string]string) (json.RawMessage, er
 		if resp.StatusCode >= 400 {
 			return nil, &APIError{
 				StatusCode: resp.StatusCode,
-				Message:    fmt.Sprintf("%s: %s", http.StatusText(resp.StatusCode), bodySnippet(body)),
+				Message:    statusMessage(http.StatusText(resp.StatusCode), bodySnippet(body)),
 			}
 		}
 		return nil, fmt.Errorf("failed to parse response (HTTP %d): %s", resp.StatusCode, bodySnippet(body))

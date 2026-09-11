@@ -1,7 +1,11 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"fmt"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
@@ -21,7 +25,10 @@ var endpointsListCmd = &cobra.Command{
 var endpointsMetricsCmd = &cobra.Command{
 	Use:   "metrics",
 	Short: "Get endpoint-specific metrics",
-	Run:   runEndpointsMetrics,
+	Example: `  # The endpoint ID is the Base64 value at the end of the "link"
+  # field in 'scout endpoints list --json'
+  scout endpoints metrics --endpoint YXBpL21ldHJpY3Mvc2hvdw== --type response_time --app 6`,
+	Run: runEndpointsMetrics,
 }
 
 var endpointFlag string
@@ -29,7 +36,7 @@ var endpointMetricTypeFlag string
 
 func init() {
 	endpointsMetricsCmd.Flags().StringVar(&endpointFlag, "endpoint", "", "URL-encoded endpoint name")
-	endpointsMetricsCmd.Flags().StringVar(&endpointMetricTypeFlag, "type", "", "Metric type")
+	endpointsMetricsCmd.Flags().StringVar(&endpointMetricTypeFlag, "type", "", "Metric type ("+strings.Join(validMetricTypes, ", ")+")")
 	_ = endpointsMetricsCmd.MarkFlagRequired("endpoint")
 	_ = endpointsMetricsCmd.MarkFlagRequired("type")
 	endpointsCmd.AddCommand(endpointsListCmd, endpointsMetricsCmd)
@@ -86,6 +93,8 @@ func runEndpointsList(cmd *cobra.Command, args []string) {
 }
 
 func runEndpointsMetrics(cmd *cobra.Command, args []string) {
+	requireValidMetricType(endpointMetricTypeFlag)
+
 	client, err := getClient()
 	if err != nil {
 		exitError(err.Error())
@@ -114,7 +123,29 @@ func runEndpointsMetrics(cmd *cobra.Command, args []string) {
 	series := metrics.Series[endpointMetricTypeFlag]
 	summary := metrics.Summaries[endpointMetricTypeFlag]
 	unit := unitForMetricType(endpointMetricTypeFlag)
-	title := fmt.Sprintf("%s — %s", endpointMetricTypeFlag, endpointFlag)
+	title := fmt.Sprintf("%s — %s", endpointMetricTypeFlag, endpointDisplayName(endpointFlag))
 
 	fmt.Println(output.RenderChart(title, series, summary, unit))
+}
+
+// endpointDisplayName decodes a Base64 URL-safe endpoint ID back to the
+// endpoint name for display, returning the input unchanged when it isn't one.
+func endpointDisplayName(id string) string {
+	b, err := base64.URLEncoding.DecodeString(id)
+	if err != nil {
+		b, err = base64.RawURLEncoding.DecodeString(id)
+		if err != nil {
+			return id
+		}
+	}
+	name := string(b)
+	if name == "" || !utf8.ValidString(name) {
+		return id
+	}
+	for _, r := range name {
+		if !unicode.IsPrint(r) {
+			return id
+		}
+	}
+	return name
 }

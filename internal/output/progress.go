@@ -15,10 +15,10 @@ type doneMsg[T any] struct {
 }
 
 type progressModel[T any] struct {
-	label    string
-	bar      progress.Model
-	result   T
-	done     bool
+	label  string
+	bar    progress.Model
+	result T
+	done   bool
 }
 
 func (m progressModel[T]) Init() tea.Cmd {

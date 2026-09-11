@@ -19,7 +19,7 @@ var jobsCmd = &cobra.Command{
 	Long: `Background job performance data.
 
 Job IDs are Base64 URL-safe encodings of a job's "queue/JobName" full name.
-Get them from 'scout jobs list --json' (or --toon), or pass the full name
+Get them from 'scout jobs list --json', or pass the full name
 directly (e.g. --job default/MyWorker) and the CLI encodes it for you.
 
 Use 'scout traces list --job <job-id>' to list traces for a background job.`,
@@ -39,8 +39,13 @@ var jobsMetricsCmd = &cobra.Command{
 Valid metric types: ` + strings.Join(validJobMetricTypes, ", ") + `
 
 For execution_time, the API returns one series per category (ActiveRecord,
-Ruby, ...); the chart shows their per-timestamp total while --json/--toon
+Ruby, ...); the chart shows their per-timestamp total while --json
 output keeps the per-category breakdown.`,
+	Example: `  # By the Base64 job ID in the "job_id" field of 'scout jobs list --json'
+  scout jobs metrics --job ZGVmYXVsdC9NeVdvcmtlcg== --type execution_time --app 6
+
+  # The same job by its "queue/JobName" full name
+  scout jobs metrics --job default/MyWorker --type throughput --app 6 --from 7d`,
 	Run: runJobsMetrics,
 }
 

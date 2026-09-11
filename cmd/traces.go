@@ -21,6 +21,16 @@ var tracesListCmd = &cobra.Command{
 
 Exactly one of --endpoint or --job is required. Traces are the slowest
 recorded within the timeframe (max 100, within the last 7 days).`,
+	Example: `  # Traces for an endpoint, by the Base64 endpoint ID in the
+  # "link" field of 'scout endpoints list --json'
+  scout traces list --endpoint YXBpL21ldHJpY3Mvc2hvdw== --app 6
+
+  # Traces for a background job, by the "job_id" field of
+  # 'scout jobs list --json'
+  scout traces list --job ZGVmYXVsdC9NeVdvcmtlcg== --app 6
+
+  # The same job by its "queue/JobName" full name
+  scout traces list --job default/MyWorker --app 6 --from 7d`,
 	Run: runTracesList,
 }
 

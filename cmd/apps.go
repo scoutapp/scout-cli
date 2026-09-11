@@ -86,6 +86,19 @@ func runAppsShow(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	// The single-app payload omits last_reported_at, which the list payload
+	// carries; fill it in so 'apps show' isn't thinner than 'apps list'.
+	if app.LastReportedAt == "" {
+		if apps, listErr := client.ListApps(); listErr == nil {
+			for _, a := range apps {
+				if a.ID == app.ID {
+					app.LastReportedAt = a.LastReportedAt
+					break
+				}
+			}
+		}
+	}
+
 	if structuredOutput(app) {
 		return
 	}
