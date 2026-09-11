@@ -228,3 +228,53 @@ func TestListJobTracesNotFound(t *testing.T) {
 	assert.Equal(t, 404, apiErr.StatusCode)
 	assert.Contains(t, apiErr.Message, "Job not found")
 }
+
+// The latency response carries a "total" sub-series that is the job's total
+// execution time, not latency. Structured output must not present it under
+// a name that says otherwise.
+func TestGetJobMetricsRenamesLatencyTotal(t *testing.T) {
+	results := `{"summaries":{"latency":1500},"series":{"latency":{
+		"Latency":[["2026-01-01T00:00:00Z",1450]],
+		"total":[["2026-01-01T00:00:00Z",85]]}}}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(envelope(results)))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+	m, err := client.GetJobMetrics(6, "ZGVmYXVsdC9NeVdvcmtlcg==", "latency", "from", "to")
+	require.NoError(t, err)
+
+	assert.NotContains(t, m.Series, "total")
+	require.Contains(t, m.Series, ExecutionTimeTotalKey)
+	assert.InDelta(t, 85, m.Series[ExecutionTimeTotalKey][0].Value, 0.01)
+	assert.InDelta(t, 1450, m.Series["Latency"][0].Value, 0.01)
+}
+
+func TestGetJobMetricsKeepsTotalForOtherTypes(t *testing.T) {
+	results := `{"summaries":{"execution_time":110},"series":{"execution_time":{
+		"ActiveRecord":[["2026-01-01T00:00:00Z",30]],
+		"total":[["2026-01-01T00:00:00Z",110]]}}}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(envelope(results)))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+	m, err := client.GetJobMetrics(6, "ZGVmYXVsdC9NeVdvcmtlcg==", "execution_time", "from", "to")
+	require.NoError(t, err)
+
+	assert.Contains(t, m.Series, "total")
+	assert.NotContains(t, m.Series, ExecutionTimeTotalKey)
+}
+
+// Without a "Latency" series the "total" is the latency total and keeps its name.
+func TestNormalizeSeriesNamesLeavesLoneTotal(t *testing.T) {
+	m := &JobMetricsResult{Series: map[string][]MetricPoint{
+		"total": {{Timestamp: "2026-01-01T00:00:00Z", Value: 12}},
+	}}
+	m.normalizeSeriesNames("latency")
+	assert.Contains(t, m.Series, "total")
+}

@@ -77,3 +77,49 @@ func TestResolveTimeframeWithFrom(t *testing.T) {
 	diff := toTime.Sub(fromTime)
 	assert.InDelta(t, 1*time.Hour, diff, float64(5*time.Second))
 }
+
+func TestParseRejectsExtremeRelativeValues(t *testing.T) {
+	for _, input := range []string{"999999999999d", "99999w", "2000d", "100000h"} {
+		_, err := Parse(input)
+		require.Error(t, err, input)
+		assert.Contains(t, err.Error(), "too far in the past", input)
+	}
+}
+
+func TestParseRejectsNegativeRelativeValues(t *testing.T) {
+	for _, input := range []string{"-5d", "-1h", "-30m"} {
+		_, err := Parse(input)
+		require.Error(t, err, input)
+		assert.Contains(t, err.Error(), "negative", input)
+	}
+}
+
+func TestParseAllowsValuesInsideTheBound(t *testing.T) {
+	for _, input := range []string{"1h", "30m", "90d", "52w", "1000d"} {
+		_, err := Parse(input)
+		require.NoError(t, err, input)
+	}
+}
+
+func TestResolveTimeframeRejectsReversedRange(t *testing.T) {
+	// --to older than --from: an empty result set today, an error now.
+	_, _, err := ResolveTimeframe("1h", "2h")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be after --from")
+
+	_, _, err = ResolveTimeframe("2026-01-02T00:00:00Z", "2026-01-01T00:00:00Z")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be after --from")
+}
+
+func TestResolveTimeframeRejectsEmptyRange(t *testing.T) {
+	_, _, err := ResolveTimeframe("2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be after --from")
+}
+
+func TestResolveTimeframePropagatesExtremeValues(t *testing.T) {
+	_, _, err := ResolveTimeframe("999999999999d", "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid --from")
+}

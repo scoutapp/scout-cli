@@ -96,11 +96,7 @@ func renderSpan(sb *strings.Builder, span api.TraceSpan, totalMs float64, prefix
 	}
 
 	// Format the operation name (pad to 40 chars)
-	op := span.Operation
-	if len(op) > 40 {
-		op = op[:37] + "..."
-	}
-	opFormatted := fmt.Sprintf("%-40s", op)
+	opFormatted := fmt.Sprintf("%-40s", Truncate(span.Operation, 40))
 
 	line := fmt.Sprintf("%s%s%s %6s  %s%s",
 		prefix,

@@ -5,6 +5,7 @@ import (
 
 	"github.com/scoutapm/scout/internal/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -22,37 +23,51 @@ func TestResolveJobID(t *testing.T) {
 		{"encoded id passes through", testJobID, testJobID},
 		{"full name needing padding", "default/ReportJob", "ZGVmYXVsdC9SZXBvcnRKb2I="},
 		{"Job/ prefixed full name is encoded", "Job/default/MyWorker", "Sm9iL2RlZmF1bHQvTXlXb3JrZXI="},
-		{"empty passes through", "", ""},
+		{"unpadded id passes through", "ZGVmYXVsdC9SZXBvcnRKb2I", "ZGVmYXVsdC9SZXBvcnRKb2I"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, resolveJobID(tt.input))
+			got, err := resolveJobID(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, got)
 		})
 	}
 }
 
-func TestDecodeJobID(t *testing.T) {
-	name, ok := decodeJobID(testJobID)
+func TestResolveJobIDRejectsMalformed(t *testing.T) {
+	// A job class name copy-pasted without its queue, a value that isn't
+	// base64 at all, and base64 that doesn't decode to a "queue/JobName".
+	for _, input := range []string{"MyWorker", "SomeWorkerName", "not base64!!", "", "YWJj"} {
+		_, err := resolveJobID(input)
+		require.Error(t, err, input)
+		assert.Contains(t, err.Error(), "default/MyWorker", input)
+	}
+}
+
+func TestDecodeBase64ID(t *testing.T) {
+	name, ok := decodeBase64ID(testJobID)
 	assert.True(t, ok)
 	assert.Equal(t, testJobFullName, name)
 
 	// Round trip
-	assert.Equal(t, testJobID, resolveJobID(name))
+	encoded, err := resolveJobID(name)
+	require.NoError(t, err)
+	assert.Equal(t, testJobID, encoded)
 
 	// Padded id
-	name, ok = decodeJobID("ZGVmYXVsdC9SZXBvcnRKb2I=")
+	name, ok = decodeBase64ID("ZGVmYXVsdC9SZXBvcnRKb2I=")
 	assert.True(t, ok)
 	assert.Equal(t, "default/ReportJob", name)
 
 	// Unpadded id is tolerated
-	name, ok = decodeJobID("ZGVmYXVsdC9SZXBvcnRKb2I")
+	name, ok = decodeBase64ID("ZGVmYXVsdC9SZXBvcnRKb2I")
 	assert.True(t, ok)
 	assert.Equal(t, "default/ReportJob", name)
 
-	_, ok = decodeJobID("")
+	_, ok = decodeBase64ID("")
 	assert.False(t, ok)
 
-	_, ok = decodeJobID("not base64!!")
+	_, ok = decodeBase64ID("not base64!!")
 	assert.False(t, ok)
 }
 

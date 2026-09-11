@@ -87,6 +87,11 @@ func runUsage(cmd *cobra.Command, args []string) {
 		exitError(err.Error())
 	}
 
+	filterID, err := appIDFilter()
+	if err != nil {
+		exitError(err.Error())
+	}
+
 	tf, err := resolveUsageTimeframe(client)
 	if err != nil {
 		exitError(err.Error())
@@ -98,10 +103,14 @@ func runUsage(cmd *cobra.Command, args []string) {
 		handleAPIError(err)
 		return
 	}
+	apps, err = filterApps(apps, filterID)
+	if err != nil {
+		exitError(err.Error())
+	}
 
 	chunks := splitTimeframe(from, to)
 
-	results := output.RunWithProgress("Fetching usage data", !jsonOutput && !toonOutput, func(update func(float64)) []appUsage {
+	results := output.RunWithProgress("Fetching usage data", !jsonOutput, func(update func(float64)) []appUsage {
 		return fetchAllApps(apps, func(a api.App) appUsage {
 			return appUsage{
 				ID:           a.ID,
@@ -127,23 +136,24 @@ func runUsage(cmd *cobra.Command, args []string) {
 		return results[i].Transactions > results[j].Transactions
 	})
 
-	if structuredOutput(results) {
-		return
-	}
-
-	printUsageHeader(tf)
-
+	// The grand total covers every app in the timeframe; -n only selects how
+	// many rows are shown.
 	var grandTotal float64
 	for _, r := range results {
 		grandTotal += r.Transactions
 	}
 
-	total := len(results)
-	limit, _ := applyLimit(total)
+	results, total := limitSlice(results)
+
+	if usageStructuredOutput(tf, results) {
+		return
+	}
+
+	printUsageHeader(tf)
 
 	headers := []string{"Name", "Web Transactions", "% of Web"}
-	rows := make([][]string, limit)
-	for i := 0; i < limit; i++ {
+	rows := make([][]string, len(results))
+	for i := range results {
 		r := results[i]
 		pct := 0.0
 		if grandTotal > 0 {
@@ -157,13 +167,31 @@ func runUsage(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
-	printTruncated(limit, total)
+	printTruncated(len(results), total)
 	printTotalFooter(grandTotal)
 	printServerTotal(tf)
 }
 
+// filterApps narrows the app list to a single app when --app was given.
+func filterApps(apps []api.App, filterID int) ([]api.App, error) {
+	if filterID <= 0 {
+		return apps, nil
+	}
+	for _, a := range apps {
+		if a.ID == filterID {
+			return []api.App{a}, nil
+		}
+	}
+	return nil, fmt.Errorf("app %d not found in this account", filterID)
+}
+
 func runUsageByDay(cmd *cobra.Command, args []string) {
 	client, err := getClient()
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	filterID, err := appIDFilter()
 	if err != nil {
 		exitError(err.Error())
 	}
@@ -173,8 +201,8 @@ func runUsageByDay(cmd *cobra.Command, args []string) {
 		exitError(err.Error())
 	}
 
-	if appID > 0 {
-		runUsageByDaySingleApp(client, appID, tf)
+	if filterID > 0 {
+		runUsageByDaySingleApp(client, filterID, tf)
 	} else if byApp {
 		runUsageByDayByApp(client, tf)
 	} else {
@@ -192,26 +220,25 @@ func runUsageByDayAllApps(client *api.Client, tf usageTimeframe) {
 
 	chunks := splitTimeframe(from, to)
 
-	allPoints := output.RunWithProgress("Fetching daily usage data", !jsonOutput && !toonOutput, func(update func(float64)) []api.MetricPoint {
+	allPoints := output.RunWithProgress("Fetching daily usage data", !jsonOutput, func(update func(float64)) []api.MetricPoint {
 		return fetchAllAppPoints(client, apps, chunks, func(done, total int) {
 			update(float64(done) / float64(total))
 		})
 	})
 	days := bucketByDay(allPoints)
 
-	if structuredOutput(days) {
+	days, total := limitSlice(days)
+
+	if usageStructuredOutput(tf, days) {
 		return
 	}
 
 	printUsageHeader(tf)
 
-	total := len(days)
-	limit, _ := applyLimit(total)
-
 	headers := []string{"Day", "Web Transactions"}
-	rows := make([][]string, limit)
+	rows := make([][]string, len(days))
 	var grandTotal int64
-	for i := 0; i < limit; i++ {
+	for i := range days {
 		d := days[i]
 		grandTotal += d.Transactions
 		rows[i] = []string{
@@ -221,7 +248,7 @@ func runUsageByDayAllApps(client *api.Client, tf usageTimeframe) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
-	printTruncated(limit, total)
+	printTruncated(len(days), total)
 	printTotalFooter(float64(grandTotal))
 	printServerTotal(tf)
 }
@@ -235,7 +262,7 @@ func runUsageByDayByApp(client *api.Client, tf usageTimeframe) {
 	}
 
 	chunks := splitTimeframe(from, to)
-	showProgress := !jsonOutput && !toonOutput
+	showProgress := !jsonOutput
 
 	type appPointsResult struct {
 		app    api.App
@@ -368,16 +395,20 @@ func runUsageByDayByApp(client *api.Client, tf usageTimeframe) {
 		})
 	}
 
-	if structuredOutput(reports) {
-		return
-	}
-
-	printUsageHeader(tf)
-
+	// The grand total covers every day in the timeframe; -n only selects how
+	// many days are shown.
 	var grandTotal int64
 	for _, report := range reports {
 		grandTotal += report.Total
 	}
+
+	reports, total := limitSlice(reports)
+
+	if usageStructuredOutput(tf, reports) {
+		return
+	}
+
+	printUsageHeader(tf)
 
 	headers := []string{"Day", "App", "Web Transactions", "% of Day", "% of Web", "Top Endpoint"}
 	var rows [][]string
@@ -405,6 +436,7 @@ func runUsageByDayByApp(client *api.Client, tf usageTimeframe) {
 		}
 	}
 	fmt.Println(output.RenderTable(headers, rows))
+	printTruncated(len(reports), total)
 
 	if grandTotal > 0 {
 		fmt.Printf("Total: %s web transactions\n", formatTransactions(float64(grandTotal)))
@@ -415,7 +447,7 @@ func runUsageByDayByApp(client *api.Client, tf usageTimeframe) {
 func runUsageByDaySingleApp(client *api.Client, id int, tf usageTimeframe) {
 	from, to := tf.from, tf.to
 	chunks := splitTimeframe(from, to)
-	showProgress := !jsonOutput && !toonOutput
+	showProgress := !jsonOutput
 
 	days := output.RunWithProgress("Fetching usage data", showProgress, func(update func(float64)) []dailyUsage {
 		points := fetchAppPoints(client, id, chunks)
@@ -452,19 +484,18 @@ func runUsageByDaySingleApp(client *api.Client, id int, tf usageTimeframe) {
 		return days
 	})
 
-	if structuredOutput(days) {
+	days, total := limitSlice(days)
+
+	if usageStructuredOutput(tf, days) {
 		return
 	}
 
 	printUsageHeader(tf)
 
-	total := len(days)
-	limit, _ := applyLimit(total)
-
 	headers := []string{"Day", "Web Transactions", "Top Endpoint"}
-	rows := make([][]string, limit)
+	rows := make([][]string, len(days))
 	var grandTotal int64
-	for i := 0; i < limit; i++ {
+	for i := range days {
 		d := days[i]
 		grandTotal += d.Transactions
 		rows[i] = []string{
@@ -475,7 +506,7 @@ func runUsageByDaySingleApp(client *api.Client, id int, tf usageTimeframe) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
-	printTruncated(limit, total)
+	printTruncated(len(days), total)
 	printTotalFooter(float64(grandTotal))
 	printServerTotal(tf)
 }
@@ -529,6 +560,39 @@ func resolveUsageTimeframe(client *api.Client) (usageTimeframe, error) {
 		to:      end.UTC().Format(time.RFC3339),
 		billing: usage,
 	}, nil
+}
+
+// billingUsage wraps a usage result with the period it covers and the
+// server-reported figure for that period, so --billing-period --json output
+// says which window it describes and what the billed total was.
+type billingUsage[T any] struct {
+	BillingPeriod api.BillingPeriod `json:"billing_period"`
+	ServerTotal   *serverTotal      `json:"server_total,omitempty"`
+	Usage         T                 `json:"usage"`
+}
+
+// serverTotal is the billed transaction figure for the period, which includes
+// background jobs and so differs from the per-app web-transaction totals.
+type serverTotal struct {
+	Transactions int64  `json:"transactions"`
+	Limit        *int64 `json:"limit,omitempty"`
+}
+
+// usageStructuredOutput emits a usage result as JSON, wrapped with the billing
+// period when --billing-period was used. Without it the shape is the bare
+// result, unchanged.
+func usageStructuredOutput[T any](tf usageTimeframe, data T) bool {
+	if tf.billing == nil {
+		return structuredOutput(data)
+	}
+	wrapped := billingUsage[T]{
+		BillingPeriod: tf.billing.BillingPeriod,
+		Usage:         data,
+	}
+	if apm := tf.billing.APM; apm != nil {
+		wrapped.ServerTotal = &serverTotal{Transactions: apm.TotalTransactions, Limit: apm.Limit}
+	}
+	return structuredOutput(wrapped)
 }
 
 // printUsageHeader prints the billing period when the query is scoped to it,

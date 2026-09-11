@@ -35,6 +35,13 @@ func TestRenderUsageBarFillWidth(t *testing.T) {
 	assert.Contains(t, renderUsageBar(300, 100), "████████████████████")
 }
 
+func TestRenderUsageBarFloorsNonzeroUsage(t *testing.T) {
+	// 0.1% rounds to no filled blocks, which reads as no usage at all.
+	assert.Contains(t, renderUsageBar(1, 1000), "█░░░░░░░░░░░░░░░░░░░")
+	// True zero stays empty.
+	assert.Contains(t, renderUsageBar(0, 1000), "░░░░░░░░░░░░░░░░░░░░")
+}
+
 func TestFormatBillingDate(t *testing.T) {
 	tests := []struct {
 		input    string

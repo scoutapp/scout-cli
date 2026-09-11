@@ -137,6 +137,11 @@ func renderUsageBar(used, limit int64) string {
 	if filled < 0 {
 		filled = 0
 	}
+	// Anything under 2.5% rounds to no blocks at all, which reads as zero
+	// usage. Show one block instead so "a little" is distinguishable.
+	if filled == 0 && used > 0 {
+		filled = 1
+	}
 
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
 

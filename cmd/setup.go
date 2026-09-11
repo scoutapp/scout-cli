@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
@@ -39,13 +40,15 @@ func init() {
 	rootCmd.AddCommand(setupCmd)
 }
 
-func frameworkDocsURL(name string) (string, bool) {
+// lookupFramework resolves a framework name case-insensitively, returning its
+// canonical name and docs URL.
+func lookupFramework(name string) (canonicalName, docsURL string, ok bool) {
 	for _, f := range frameworks {
-		if f.name == name {
-			return f.docsURL, true
+		if strings.EqualFold(f.name, name) {
+			return f.name, f.docsURL, true
 		}
 	}
-	return "", false
+	return "", "", false
 }
 
 func runSetup(cmd *cobra.Command, args []string) {
@@ -71,10 +74,9 @@ func runSetup(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	framework := args[0]
-	docsURL, found := frameworkDocsURL(framework)
-	if !found {
-		exitError(fmt.Sprintf("unknown framework: %s", framework))
+	framework, docsURL, ok := lookupFramework(args[0])
+	if !ok {
+		exitError(fmt.Sprintf("unknown framework %q — run 'scout setup' with no arguments to list the supported names", args[0]))
 	}
 
 	if structuredOutput(map[string]interface{}{

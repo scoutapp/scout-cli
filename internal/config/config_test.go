@@ -73,3 +73,16 @@ func TestGetAPIURLFromEnv(t *testing.T) {
 	t.Setenv("SCOUT_API_URL", "https://custom.com")
 	assert.Equal(t, "https://custom.com", GetAPIURL())
 }
+
+// 'scout auth logout' on a fresh machine, where no config has ever been written.
+func TestClearWithoutExistingConfigDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	require.NoError(t, Clear())
+
+	cfg, err := Read()
+	require.NoError(t, err)
+	assert.Equal(t, Config{}, cfg)
+}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 var (
@@ -19,6 +20,19 @@ var (
 	TableHeaderStyle = lipgloss.NewStyle().Bold(true).Padding(0, 1)
 	TableCellStyle   = lipgloss.NewStyle().Padding(0, 1)
 )
+
+// Truncate shortens s to at most width terminal cells, marking the cut with an
+// ellipsis. It counts graphemes rather than bytes, so it never splits a
+// multibyte character or an ANSI escape sequence.
+func Truncate(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if lipgloss.Width(s) <= width {
+		return s
+	}
+	return ansi.Truncate(s, width, "…")
+}
 
 func StatusColor(status string) lipgloss.Style {
 	switch status {

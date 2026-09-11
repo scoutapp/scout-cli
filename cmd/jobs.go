@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/scoutapm/scout/internal/api"
 	"github.com/scoutapm/scout/internal/output"
@@ -19,7 +18,7 @@ var jobsCmd = &cobra.Command{
 	Long: `Background job performance data.
 
 Job IDs are Base64 URL-safe encodings of a job's "queue/JobName" full name.
-Get them from 'scout jobs list --json' (or --toon), or pass the full name
+Get them from 'scout jobs list --json', or pass the full name
 directly (e.g. --job default/MyWorker) and the CLI encodes it for you.
 
 Use 'scout traces list --job <job-id>' to list traces for a background job.`,
@@ -39,8 +38,13 @@ var jobsMetricsCmd = &cobra.Command{
 Valid metric types: ` + strings.Join(validJobMetricTypes, ", ") + `
 
 For execution_time, the API returns one series per category (ActiveRecord,
-Ruby, ...); the chart shows their per-timestamp total while --json/--toon
+Ruby, ...); the chart shows their per-timestamp total while --json
 output keeps the per-category breakdown.`,
+	Example: `  # By the Base64 job ID in the "job_id" field of 'scout jobs list --json'
+  scout jobs metrics --job ZGVmYXVsdC9NeVdvcmtlcg== --type execution_time --app 6
+
+  # The same job by its "queue/JobName" full name
+  scout jobs metrics --job default/MyWorker --type throughput --app 6 --from 7d`,
 	Run: runJobsMetrics,
 }
 
@@ -80,16 +84,15 @@ func runJobsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	jobs, total := limitSlice(jobs)
+
 	if structuredOutput(jobs) {
 		return
 	}
 
-	total := len(jobs)
-	limit, _ := applyLimit(total)
-
 	headers := []string{"Job", "Queue", "Throughput", "Exec Time", "Latency", "% Time"}
-	rows := make([][]string, limit)
-	for i := 0; i < limit; i++ {
+	rows := make([][]string, len(jobs))
+	for i := range jobs {
 		j := jobs[i]
 		rows[i] = []string{
 			j.Name,
@@ -102,7 +105,7 @@ func runJobsList(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
-	printTruncated(limit, total)
+	printTruncated(len(jobs), total)
 }
 
 func runJobsMetrics(cmd *cobra.Command, args []string) {
@@ -121,12 +124,21 @@ func runJobsMetrics(cmd *cobra.Command, args []string) {
 		exitError(err.Error())
 	}
 
+	jobFlag, err := requireFlagValue("job", jobFlag)
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	jobID, err := resolveJobID(jobFlag)
+	if err != nil {
+		exitError(err.Error())
+	}
+
 	from, to, err := resolveTimeframe()
 	if err != nil {
 		exitError(err.Error())
 	}
 
-	jobID := resolveJobID(jobFlag)
 	metrics, err := client.GetJobMetrics(id, jobID, jobMetricTypeFlag, from, to)
 	if err != nil {
 		handleAPIError(err)
@@ -159,30 +171,18 @@ func chartSeries(metricType string, m *api.JobMetricsResult) []api.MetricPoint {
 // resolveJobID accepts either an already-encoded job ID or a "queue/JobName"
 // full name and returns the Base64 URL-safe job ID the API expects (matching
 // Ruby's Base64.urlsafe_encode64, including padding).
-func resolveJobID(s string) string {
+//
+// A value that is neither form — most often a job class name copy-pasted
+// without its queue — is rejected here rather than passed through to the
+// server, which answers an unrecognized id with a bare 500.
+func resolveJobID(s string) (string, error) {
 	if strings.Contains(s, "/") {
-		return base64.URLEncoding.EncodeToString([]byte(s))
+		return base64.URLEncoding.EncodeToString([]byte(s)), nil
 	}
-	return s
-}
-
-// decodeJobID decodes a Base64 URL-safe job ID back to its "queue/JobName"
-// full name. Returns false if the value is not a decodable job ID.
-func decodeJobID(id string) (string, bool) {
-	if id == "" {
-		return "", false
+	if name, ok := decodeBase64ID(s); !ok || !strings.Contains(name, "/") {
+		return "", fmt.Errorf("invalid job %q — expected a job id from 'scout jobs list --json' (the job_id field), or a full name like default/MyWorker", s)
 	}
-	b, err := base64.URLEncoding.DecodeString(id)
-	if err != nil {
-		b, err = base64.RawURLEncoding.DecodeString(id)
-		if err != nil {
-			return "", false
-		}
-	}
-	if len(b) == 0 || !utf8.Valid(b) {
-		return "", false
-	}
-	return string(b), true
+	return s, nil
 }
 
 // jobDisplayName returns a human-friendly job name for titles: the full name
@@ -191,7 +191,7 @@ func jobDisplayName(s string) string {
 	if strings.Contains(s, "/") {
 		return s
 	}
-	if name, ok := decodeJobID(s); ok {
+	if name, ok := decodeBase64ID(s); ok {
 		return name
 	}
 	return s

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -297,4 +298,97 @@ func TestFormatTransactions(t *testing.T) {
 			assert.Equal(t, tt.expected, formatTransactions(tt.input))
 		})
 	}
+}
+
+func TestFilterApps(t *testing.T) {
+	apps := []api.App{{ID: 1, Name: "one"}, {ID: 6, Name: "six"}}
+
+	all, err := filterApps(apps, 0)
+	require.NoError(t, err)
+	assert.Equal(t, apps, all)
+
+	one, err := filterApps(apps, 6)
+	require.NoError(t, err)
+	assert.Equal(t, []api.App{{ID: 6, Name: "six"}}, one)
+
+	_, err = filterApps(apps, 999)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "app 999 not found")
+}
+
+// Without --billing-period the structured shape is the bare result.
+func TestUsageStructuredOutputWithoutBillingPeriod(t *testing.T) {
+	prev := jsonOutput
+	jsonOutput = true
+	t.Cleanup(func() { jsonOutput = prev })
+
+	out := captureStdout(t, func() {
+		assert.True(t, usageStructuredOutput(usageTimeframe{}, []appUsage{{ID: 6, Name: "six", Transactions: 10}}))
+	})
+
+	var decoded struct {
+		Data []appUsage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &decoded))
+	assert.Equal(t, []appUsage{{ID: 6, Name: "six", Transactions: 10}}, decoded.Data)
+}
+
+// With --billing-period the period and the billed figure travel with the data.
+func TestUsageStructuredOutputWithBillingPeriod(t *testing.T) {
+	prev := jsonOutput
+	jsonOutput = true
+	t.Cleanup(func() { jsonOutput = prev })
+
+	limit := int64(5000)
+	tf := usageTimeframe{
+		billing: &api.OrgUsage{
+			BillingPeriod: api.BillingPeriod{Start: "2026-03-01", End: "2026-03-31"},
+			APM:           &api.APMUsage{TotalTransactions: 1234, Limit: &limit},
+		},
+	}
+
+	out := captureStdout(t, func() {
+		assert.True(t, usageStructuredOutput(tf, []appUsage{{ID: 6, Name: "six", Transactions: 10}}))
+	})
+
+	var decoded struct {
+		Data billingUsage[[]appUsage] `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &decoded))
+	assert.Equal(t, "2026-03-01", decoded.Data.BillingPeriod.Start)
+	assert.Equal(t, "2026-03-31", decoded.Data.BillingPeriod.End)
+	require.NotNil(t, decoded.Data.ServerTotal)
+	assert.Equal(t, int64(1234), decoded.Data.ServerTotal.Transactions)
+	require.NotNil(t, decoded.Data.ServerTotal.Limit)
+	assert.Equal(t, int64(5000), *decoded.Data.ServerTotal.Limit)
+	assert.Len(t, decoded.Data.Usage, 1)
+}
+
+// -n selects which rows ship, never the billed total.
+func TestUsageStructuredOutputLimitDoesNotChangeServerTotal(t *testing.T) {
+	prev := jsonOutput
+	jsonOutput = true
+	t.Cleanup(func() { jsonOutput = prev })
+	withLimit(t, 1)
+
+	tf := usageTimeframe{
+		billing: &api.OrgUsage{
+			BillingPeriod: api.BillingPeriod{Start: "2026-03-01", End: "2026-03-31"},
+			APM:           &api.APMUsage{TotalTransactions: 999},
+		},
+	}
+	results := []appUsage{{ID: 1, Transactions: 5}, {ID: 2, Transactions: 3}}
+	shown, total := limitSlice(results)
+	assert.Equal(t, 2, total)
+
+	out := captureStdout(t, func() {
+		assert.True(t, usageStructuredOutput(tf, shown))
+	})
+
+	var decoded struct {
+		Data billingUsage[[]appUsage] `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &decoded))
+	assert.Len(t, decoded.Data.Usage, 1)
+	assert.Equal(t, int64(999), decoded.Data.ServerTotal.Transactions)
 }
