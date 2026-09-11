@@ -3,6 +3,9 @@ package cmd
 import (
 	"fmt"
 	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
@@ -55,27 +58,34 @@ func runAnomaliesList(cmd *cobra.Command, args []string) {
 		exitError(err.Error())
 	}
 
+	endpoint := ""
+	if cmd.Flags().Changed("endpoint") {
+		endpoint, err = resolveAnomalyEndpoint(anomaliesEndpoint)
+		if err != nil {
+			exitError(err.Error())
+		}
+	}
+
 	from, to, err := resolveTimeframe()
 	if err != nil {
 		exitError(err.Error())
 	}
 
-	events, err := client.ListAnomalyEvents(id, anomaliesState, anomaliesMetric, anomaliesEndpoint, from, to)
+	events, err := client.ListAnomalyEvents(id, anomaliesState, anomaliesMetric, endpoint, from, to)
 	if err != nil {
 		handleAPIError(err)
 		return
 	}
 
+	events, total := limitSlice(events)
+
 	if structuredOutput(events) {
 		return
 	}
 
-	total := len(events)
-	limit, _ := applyLimit(total)
-
 	headers := []string{"ID", "State", "Metric", "Endpoint", "Started", "Z-score", "Multiplier"}
-	rows := make([][]string, limit)
-	for i := 0; i < limit; i++ {
+	rows := make([][]string, len(events))
+	for i := range events {
 		e := events[i]
 		state := anomalyState(e.Open)
 		rows[i] = []string{
@@ -90,7 +100,45 @@ func runAnomaliesList(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
-	printTruncated(limit, total)
+	printTruncated(len(events), total)
+}
+
+// resolveAnomalyEndpoint accepts the endpoint forms used elsewhere in the CLI
+// and returns the scoped metric name the anomaly events API matches on.
+//
+// Anomalies are recorded against the full metric name ("Controller/users/index")
+// shown in 'scout anomalies list', while every other --endpoint flag takes the
+// Base64 URL-safe endpoint id from 'scout endpoints list'. Both are accepted
+// here, as is the plain endpoint name, so a base64 id no longer silently
+// matches nothing.
+func resolveAnomalyEndpoint(s string) (string, error) {
+	name, err := requireFlagValue("endpoint", s)
+	if err != nil {
+		return "", err
+	}
+	if !strings.Contains(name, "/") {
+		decoded, ok := decodeBase64ID(name)
+		if !ok {
+			return "", fmt.Errorf("invalid --endpoint %q — expected an endpoint name from 'scout anomalies list' (e.g. Controller/users/index) or a Base64 endpoint id from 'scout endpoints list --json'", s)
+		}
+		name = decoded
+	}
+	if hasMetricScope(name) {
+		return name, nil
+	}
+	return "Controller/" + name, nil
+}
+
+// hasMetricScope reports whether a name already carries a metric scope prefix
+// such as "Controller/" or "Job/". Endpoint names on their own are the
+// lowercase path portion ("users/index").
+func hasMetricScope(name string) bool {
+	scope, rest, ok := strings.Cut(name, "/")
+	if !ok || scope == "" || rest == "" {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(scope)
+	return unicode.IsUpper(r)
 }
 
 func runAnomaliesShow(cmd *cobra.Command, args []string) {

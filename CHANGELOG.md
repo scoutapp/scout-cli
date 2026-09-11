@@ -1,26 +1,46 @@
 # Changelog
 
-## [0.5.0] - 2026-09-10
-
-This release rounds out command coverage across the whole Scout API surface
-(background jobs, billing) and fixes a crash in `scout traces`.
-
-### Added
-
-- `scout billing` — show current billing period usage from the `/usage` API: billing period dates, pricing style, APM transactions (with plan limit), active nodes, errors, and log bytes (#23)
-- `scout usage --billing-period` — scope usage to the exact billing period dates from the API and show the server-reported billed total alongside the per-app calculation (#23)
-- `scout jobs list` and `scout jobs metrics` — list background job performance (throughput, execution time, latency, % of job time) and chart per-job metrics (`throughput`, `execution_time`, `latency`, `errors`, `allocations`) (#24)
-- `scout traces list --job <job-id>` — list traces for a background job; `--job` also accepts the `queue/JobName` full name (#24)
+## Pending
 
 ### Changed
 
-- `scout usage` now labels its columns and totals as web transactions (`Web Transactions`, `% of Web`) — the throughput metric it is built on excludes background jobs (#23)
-- Homebrew install docs now cover Homebrew 6 tap trust — document `brew trust --formula scoutapp/tap/scout-cli` for users upgrading from Homebrew 5 and a Brewfile (`brew bundle`) install form (#22)
+- `scout usage --app <id>` (without `--by-day`) now filters to that one app instead of silently reporting every app, matching `--by-day --app <id>` (#29)
+- `scout usage --billing-period --json` now wraps the per-app result in an object carrying `billing_period` and `server_total`, so a script can tell which window it got and what the billed figure was. Without `--billing-period` the shape is unchanged (#29)
+- `scout jobs metrics --type latency --json` renames the API's `total` sub-series to `execution_time_total`, which is what it actually holds; other metric types are unchanged (#29)
+- `scout errors show` omits the `Count:` line when the API reports 0, which it does for every error group even when `errors list` shows a real count (#29)
+- `scout insights show` prints nested fields as indented `key: value` pairs and empty values as `—`, instead of leaking Go's `map[...]` and `<nil>` formatting (#29)
 
 ### Fixed
 
-- `scout traces list` and `scout traces show` no longer fail with `cannot unmarshal number ... into Go struct field ... mem_delta of type int64` — the API reports `mem_delta` as a float in megabytes, so it is now decoded as such and displayed as MB (#21)
-- `scout traces list` Duration column and the legacy-trace header in `scout traces show` treated `total_call_time` as seconds; the API reports it in milliseconds, so an 83-second request no longer shows as `83483.9s` (#21)
+- `-n`/`--limit` is now applied to `--json` output, not just the human table, across every list command: `apps list`, `endpoints list`, `jobs list`, `traces list`, `errors list`, `errors occurrences`, `anomalies list`, `insights list`, `insights show`, and all four `usage` modes. Totals and percentages are still computed over the full result set (#29)
+- `scout insights list` and `scout insights show` now honor `-n` at all; it previously had no effect on either (#29)
+- `scout anomalies --endpoint` now accepts a Base64 endpoint id and a plain endpoint name as well as the scoped name from `anomalies list`, instead of silently matching nothing (#29)
+- `--endpoint` and `--job` now reject a blank value client-side rather than passing it to the server (#29)
+- A malformed `--job` value, or a job class name copy-pasted without its queue, now gets a clear client-side error instead of a raw `API error (500)` (#29)
+- `scout auth logout` no longer fails on a machine with no config directory yet (#29)
+- `--from`/`--to` now reject a reversed range and unreasonably large or negative relative durations, which previously produced silently empty or nonsensical results (#29)
+- `--app 0` and negative app ids now report an invalid value instead of "no app specified" (#29)
+- `scout traces show` on a 404 now explains that background job traces have no detail endpoint (#29)
+- `scout insights show` field order is now stable; it previously ranged over a Go map and printed a different order every run (#29)
+
+## Pending
+
+### Added
+
+- `scout billing` — show current billing period usage from the `/usage` API: billing period dates, pricing style, APM transactions (with plan limit), active nodes, errors, and log bytes (#8)
+- `scout usage --billing-period` — scope usage to the exact billing period dates from the API and show the server-reported billed total alongside the per-app calculation (#8)
+- `scout jobs list` and `scout jobs metrics` — list background job performance (throughput, execution time, latency, % of job time) and chart per-job metrics (`throughput`, `execution_time`, `latency`, `errors`, `allocations`) (#18)
+- `scout traces list --job <job-id>` — list traces for a background job; `--job` also accepts the `queue/JobName` full name (#18)
+
+### Changed
+
+- `scout usage` labels its columns and totals as web transactions (`Web Transactions`, `% of Web`) — the throughput metric it is built on excludes background jobs (#8)
+- Update Homebrew install docs for Homebrew 6 tap trust — document `brew trust --formula scoutapp/tap/scout-cli` for users upgrading from Homebrew 5 and a Brewfile (`brew bundle`) install form (#20)
+
+### Fixed
+
+- `scout traces list` and `scout traces show` no longer fail with `cannot unmarshal number ... into Go struct field ... mem_delta of type int64` — the API reports `mem_delta` as a float in megabytes, so it is now decoded as such and displayed as MB (#19)
+- `scout traces list` Duration column and the legacy-trace header in `scout traces show` treated `total_call_time` as seconds; the API reports it in milliseconds, so an 83-second request no longer shows as `83483.9s` (#19)
 
 ## [0.4.0] - 2026-06-04
 
