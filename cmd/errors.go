@@ -181,16 +181,12 @@ func runErrorsOccurrences(cmd *cobra.Command, args []string) {
 	rows := make([][]string, limit)
 	for i := 0; i < limit; i++ {
 		o := occurrences[i]
-		msg := o.Message
-		if len(msg) > 80 {
-			msg = msg[:77] + "..."
-		}
 		rows[i] = []string{
 			strconv.Itoa(o.ID),
 			output.FormatRelativeTime(o.CreatedAt),
 			o.Location,
 			o.RequestURI,
-			msg,
+			o.Message,
 		}
 	}
 

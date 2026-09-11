@@ -2,26 +2,31 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/scoutapm/scout/internal/output"
 	"github.com/spf13/cobra"
 )
 
+// Scout's docs are organized by language, not by framework, and several
+// frameworks have no dedicated page — so each entry carries its own URL
+// rather than deriving one from the framework name.
 var frameworks = []struct {
-	name string
-	desc string
+	name    string
+	desc    string
+	docsURL string
 }{
-	{"rails", "Ruby on Rails"},
-	{"django", "Python Django"},
-	{"flask", "Python Flask"},
-	{"phoenix", "Elixir Phoenix"},
-	{"express", "Node.js Express"},
-	{"laravel", "PHP Laravel"},
-	{"sinatra", "Ruby Sinatra"},
-	{"fastapi", "Python FastAPI"},
-	{"celery", "Python Celery"},
-	{"dramatiq", "Python Dramatiq"},
-	{"sidekiq", "Ruby Sidekiq"},
+	{"rails", "Ruby on Rails", "https://scoutapm.com/docs/ruby"},
+	{"django", "Python Django", "https://scoutapm.com/docs/python/django"},
+	{"flask", "Python Flask", "https://scoutapm.com/docs/python/flask"},
+	{"phoenix", "Elixir Phoenix", "https://scoutapm.com/docs/elixir"},
+	{"express", "Node.js Express", "https://scoutapm.com/docs/node/express"},
+	{"laravel", "PHP Laravel", "https://scoutapm.com/docs/php/laravel"},
+	{"sinatra", "Ruby Sinatra", "https://scoutapm.com/docs/ruby/sinatra"},
+	{"fastapi", "Python FastAPI", "https://scoutapm.com/docs/python/fastapi"},
+	{"celery", "Python Celery", "https://scoutapm.com/docs/python/celery"},
+	{"dramatiq", "Python Dramatiq", "https://scoutapm.com/docs/python/other-libraries#dramatiq"},
+	{"sidekiq", "Ruby Sidekiq", "https://scoutapm.com/docs/ruby#instrumented-libraries"},
 }
 
 var setupCmd = &cobra.Command{
@@ -33,6 +38,17 @@ var setupCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(setupCmd)
+}
+
+// lookupFramework resolves a framework name case-insensitively, returning its
+// canonical name and docs URL.
+func lookupFramework(name string) (canonicalName, docsURL string, ok bool) {
+	for _, f := range frameworks {
+		if strings.EqualFold(f.name, name) {
+			return f.name, f.docsURL, true
+		}
+	}
+	return "", "", false
 }
 
 func runSetup(cmd *cobra.Command, args []string) {
@@ -58,20 +74,10 @@ func runSetup(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	framework := args[0]
-	found := false
-	for _, f := range frameworks {
-		if f.name == framework {
-			found = true
-			break
-		}
+	framework, docsURL, ok := lookupFramework(args[0])
+	if !ok {
+		exitError(fmt.Sprintf("unknown framework %q — run 'scout setup' with no arguments to list the supported names", args[0]))
 	}
-
-	if !found {
-		exitError(fmt.Sprintf("unknown framework: %s", framework))
-	}
-
-	docsURL := fmt.Sprintf("https://scoutapm.com/docs/%s", framework)
 
 	if structuredOutput(map[string]interface{}{
 		"framework": framework,

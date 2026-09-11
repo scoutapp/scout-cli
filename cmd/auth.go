@@ -199,6 +199,7 @@ func runAuthStatus(cmd *cobra.Command, args []string) {
 		"authenticated":  key != "",
 		"api_key_prefix": maskKey(key),
 		"api_url":        url,
+		"config_path":    config.Path(),
 	}
 	if cfg.DefaultAppID > 0 {
 		data["default_app_id"] = cfg.DefaultAppID
@@ -209,6 +210,7 @@ func runAuthStatus(cmd *cobra.Command, args []string) {
 
 	if key == "" {
 		fmt.Println(output.WarningStyle.Render("Not authenticated"))
+		fmt.Printf("  Config: %s\n", config.Path())
 		fmt.Println(output.DimStyle.Render("Run 'scout auth login' to authenticate"))
 		return
 	}
@@ -216,6 +218,7 @@ func runAuthStatus(cmd *cobra.Command, args []string) {
 	fmt.Println(output.SuccessStyle.Render("✓ Authenticated"))
 	fmt.Printf("  API Key: %s\n", maskKey(key))
 	fmt.Printf("  API URL: %s\n", url)
+	fmt.Printf("  Config: %s\n", config.Path())
 	if cfg.DefaultAppID > 0 {
 		fmt.Printf("  Default App: %d\n", cfg.DefaultAppID)
 	}
