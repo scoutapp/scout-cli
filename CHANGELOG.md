@@ -1,5 +1,11 @@
 # Changelog
 
+## Pending
+
+### Fixed
+
+- `scout traces show` rendered every span's duration ~1000x too small, flattening the bar chart and making the color thresholds and `⚠ slow` warning unreachable. The API reports span durations in seconds despite the `duration_ms` key name; `--json` output is unaffected (#26)
+
 ## [0.5.0] - 2026-09-10
 
 This release rounds out command coverage across the whole Scout API surface
