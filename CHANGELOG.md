@@ -1,5 +1,11 @@
 # Changelog
 
+## Pending
+
+### Fixed
+
+- `scout setup <framework>` now links to a real docs page for every framework — the old `/docs/<framework>` URLs all 404'd because Scout's docs are organized by language (#27)
+
 ## [0.5.0] - 2026-09-10
 
 This release rounds out command coverage across the whole Scout API surface
