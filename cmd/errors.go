@@ -60,16 +60,15 @@ func runErrorsList(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	groups, total := limitSlice(groups)
+
 	if structuredOutput(groups) {
 		return
 	}
 
-	total := len(groups)
-	limit, _ := applyLimit(total)
-
 	headers := []string{"ID", "Name", "Count", "Status", "Last Seen"}
-	rows := make([][]string, limit)
-	for i := 0; i < limit; i++ {
+	rows := make([][]string, len(groups))
+	for i := range groups {
 		g := groups[i]
 		status := output.StatusColor(g.Status).Render(g.Status)
 		rows[i] = []string{
@@ -82,7 +81,7 @@ func runErrorsList(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
-	printTruncated(limit, total)
+	printTruncated(len(groups), total)
 }
 
 func runErrorsShow(cmd *cobra.Command, args []string) {
@@ -114,7 +113,12 @@ func runErrorsShow(cmd *cobra.Command, args []string) {
 	fmt.Println(output.HeaderStyle.Render(group.Name))
 	fmt.Printf("  Message:  %s\n", group.Message)
 	fmt.Printf("  Status:   %s\n", output.StatusColor(group.Status).Render(group.Status))
-	fmt.Printf("  Count:    %d\n", group.ErrorsCount)
+	// The show payload leaves errors_count at 0 even for groups 'errors list'
+	// reports a count for. A group only exists because errors occurred, so a
+	// zero here means "not reported", not "none".
+	if group.ErrorsCount > 0 {
+		fmt.Printf("  Count:    %d\n", group.ErrorsCount)
+	}
 	fmt.Printf("  Last:     %s\n", output.FormatRelativeTime(group.LastErrorAt))
 	if group.RequestURI != "" {
 		fmt.Printf("  URI:      %s\n", group.RequestURI)
@@ -170,30 +174,25 @@ func runErrorsOccurrences(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	occurrences, total := limitSlice(occurrences)
+
 	if structuredOutput(occurrences) {
 		return
 	}
 
-	total := len(occurrences)
-	limit, _ := applyLimit(total)
-
 	headers := []string{"ID", "Time", "Location", "URI", "Message"}
-	rows := make([][]string, limit)
-	for i := 0; i < limit; i++ {
+	rows := make([][]string, len(occurrences))
+	for i := range occurrences {
 		o := occurrences[i]
-		msg := o.Message
-		if len(msg) > 80 {
-			msg = msg[:77] + "..."
-		}
 		rows[i] = []string{
 			strconv.Itoa(o.ID),
 			output.FormatRelativeTime(o.CreatedAt),
 			o.Location,
 			o.RequestURI,
-			msg,
+			o.Message,
 		}
 	}
 
 	fmt.Println(output.RenderTable(headers, rows))
-	printTruncated(limit, total)
+	printTruncated(len(occurrences), total)
 }

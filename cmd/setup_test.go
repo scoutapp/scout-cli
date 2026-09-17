@@ -31,29 +31,37 @@ func TestFrameworkTableIsWellFormed(t *testing.T) {
 	}
 }
 
-func TestFrameworkDocsURLLookup(t *testing.T) {
+func TestLookupFramework(t *testing.T) {
 	tests := []struct {
-		name string
-		want string
+		input   string
+		want    string
+		wantURL string
+		found   bool
 	}{
-		{"rails", "https://scoutapm.com/docs/ruby"},
-		{"django", "https://scoutapm.com/docs/python/django"},
-		{"sinatra", "https://scoutapm.com/docs/ruby/sinatra"},
-		{"express", "https://scoutapm.com/docs/node/express"},
-		{"sidekiq", "https://scoutapm.com/docs/ruby#instrumented-libraries"},
+		{input: "rails", want: "rails", wantURL: "https://scoutapm.com/docs/ruby", found: true},
+		{input: "Rails", want: "rails", wantURL: "https://scoutapm.com/docs/ruby", found: true},
+		{input: "RAILS", want: "rails", wantURL: "https://scoutapm.com/docs/ruby", found: true},
+		{input: "FastAPI", want: "fastapi", wantURL: "https://scoutapm.com/docs/python/fastapi", found: true},
+		{input: "django", want: "django", wantURL: "https://scoutapm.com/docs/python/django", found: true},
+		{input: "sinatra", want: "sinatra", wantURL: "https://scoutapm.com/docs/ruby/sinatra", found: true},
+		{input: "express", want: "express", wantURL: "https://scoutapm.com/docs/node/express", found: true},
+		{input: "sidekiq", want: "sidekiq", wantURL: "https://scoutapm.com/docs/ruby#instrumented-libraries", found: true},
+		{input: "ruby", found: false},
+		{input: "cobol", found: false},
+		{input: "", found: false},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, found := frameworkDocsURL(tt.name)
-			require.True(t, found)
-			assert.Equal(t, tt.want, got)
+		t.Run(tt.input, func(t *testing.T) {
+			name, docsURL, ok := lookupFramework(tt.input)
+			assert.Equal(t, tt.found, ok)
+			if tt.found {
+				assert.Equal(t, tt.want, name)
+				assert.Equal(t, tt.wantURL, docsURL)
+			} else {
+				assert.Empty(t, name)
+				assert.Empty(t, docsURL)
+			}
 		})
 	}
-}
-
-func TestFrameworkDocsURLUnknown(t *testing.T) {
-	got, found := frameworkDocsURL("cobol")
-	assert.False(t, found)
-	assert.Empty(t, got)
 }

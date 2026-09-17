@@ -181,6 +181,29 @@ func (r *JobMetricsResult) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// ExecutionTimeTotalKey is the name given to the latency response's "total"
+// sub-series, which holds the job's total execution time rather than latency.
+const ExecutionTimeTotalKey = "execution_time_total"
+
+// normalizeSeriesNames renames sub-series whose API name misdescribes their
+// contents, so structured output doesn't hand callers a mislabelled series.
+// The latency response carries both a "Latency" series and a "total" series
+// that is execution time, not queue latency.
+func (r *JobMetricsResult) normalizeSeriesNames(metricType string) {
+	if metricType != "latency" {
+		return
+	}
+	total, ok := r.Series["total"]
+	if !ok {
+		return
+	}
+	if _, hasLatency := r.Series["Latency"]; !hasLatency {
+		return
+	}
+	delete(r.Series, "total")
+	r.Series[ExecutionTimeTotalKey] = total
+}
+
 // Total returns a single series for charting: the only sub-series when there
 // is exactly one, the API-provided "total" sub-series when present (e.g.
 // execution_time returns per-category series plus their total), otherwise the

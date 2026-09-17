@@ -27,4 +27,15 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "Not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - run: go vet ./...
+
       - uses: golangci/golangci-lint-action@v6
