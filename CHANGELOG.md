@@ -46,6 +46,10 @@
 - String truncation in tables, the span tree and API error bodies counts graphemes rather than bytes, so it cannot split a multibyte character (#29)
 - `scout setup <name>` matches framework names case-insensitively and its error points at `scout setup` with no arguments for the valid list (#29)
 
+### Removed
+
+- `--toon` flag and the `toon-format/toon-go` dependency — `--json` is now the CLI's only structured output format, and piped output auto-enables `--json` instead of TOON (#28)
+
 ## [0.5.0] - 2026-09-10
 
 This release rounds out command coverage across the whole Scout API surface
