@@ -1,6 +1,9 @@
 # Changelog
 
-## Pending
+## [1.0.0] - 2026-09-17
+
+This release rounds out command coverage across the whole Scout API surface
+(background jobs, billing).
 
 ### Added
 
