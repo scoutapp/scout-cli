@@ -3,8 +3,7 @@
 ## [1.0.0] - 2026-09-17
 
 This release rounds out command coverage across the whole Scout API surface
-(background jobs, billing), fixes the `scout setup` documentation links, and
-drops TOON output in favor of `--json` as the CLI's one structured format.
+(background jobs, billing).
 
 ### Added
 
