@@ -1,6 +1,19 @@
 # Changelog
 
-## Pending
+## [1.0.0] - 2026-09-21
+
+1.0 marks the command surface as complete — apps, metrics, endpoints, background
+jobs, traces, errors, anomalies, insights, usage and billing — and this release
+is about making that surface dependable rather than larger: consistent `--json`
+contracts, input validated before it reaches the server, and charts that
+represent the data behind them honestly. The
+[README](https://github.com/scoutapp/scout-cli#usage) covers what each command does.
+
+### Breaking changes
+
+- `--toon` and the `toon-format/toon-go` dependency are removed. `--json` is now the CLI's only structured output format, and **piped output auto-enables `--json` instead of TOON** — anything piping `scout` and parsing TOON needs to parse JSON instead (#28)
+- `scout usage --billing-period --json` now wraps the per-app result in an object carrying `billing_period` and `server_total`, so a script can tell which window it got and what the billed figure was. Without `--billing-period` the shape is unchanged (#29)
+- `scout jobs metrics --type latency --json` renames the API's `total` sub-series to `execution_time_total`, which is what it actually holds; other metric types are unchanged (#29)
 
 ### Added
 
@@ -12,8 +25,6 @@
 ### Changed
 
 - `scout usage --app <id>` (without `--by-day`) now filters to that one app instead of silently reporting every app, matching `--by-day --app <id>` (#29)
-- `scout usage --billing-period --json` now wraps the per-app result in an object carrying `billing_period` and `server_total`, so a script can tell which window it got and what the billed figure was. Without `--billing-period` the shape is unchanged (#29)
-- `scout jobs metrics --type latency --json` renames the API's `total` sub-series to `execution_time_total`, which is what it actually holds; other metric types are unchanged (#29)
 - `scout errors show` omits the `Count:` line when the API reports 0, which it does for every error group even when `errors list` shows a real count (#29)
 - `scout insights show` prints nested fields as indented `key: value` pairs and empty values as `—`, instead of leaking Go's `map[...]` and `<nil>` formatting (#29)
 - Table cells are capped at 60 display columns with an ellipsis, so one long URI no longer stretches a table past a normal terminal width; `--json` output is uncapped (#29)
@@ -45,10 +56,6 @@
 - API errors no longer repeat an HTTP status text that the response body only duplicates ("Not Found: Not Found") (#29)
 - String truncation in tables, the span tree and API error bodies counts graphemes rather than bytes, so it cannot split a multibyte character (#29)
 - `scout setup <name>` matches framework names case-insensitively and its error points at `scout setup` with no arguments for the valid list (#29)
-
-### Removed
-
-- `--toon` flag and the `toon-format/toon-go` dependency — `--json` is now the CLI's only structured output format, and piped output auto-enables `--json` instead of TOON (#28)
 
 ## [0.5.0] - 2026-09-10
 
